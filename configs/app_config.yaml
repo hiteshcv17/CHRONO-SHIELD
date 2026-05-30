@@ -1,0 +1,55 @@
+# ==============================================================================
+# ChronoShield AI Shared Config Schema
+# ==============================================================================
+# Central configuration for thresholds, hyper-parameters, pipeline constraints,
+# and logging criteria across systems.
+
+system:
+  project_name: "ChronoShield AI"
+  version: "1.0.0"
+  log_retention_days: 30
+
+telemetry:
+  polling_interval_seconds: 10
+  metrics_monitored:
+    - name: "CPU_Usage"
+      unit: "percent"
+      range: [0.0, 100.0]
+    - name: "Memory_Usage"
+      unit: "percent"
+      range: [0.0, 100.0]
+    - name: "Network_In"
+      unit: "bytes_per_sec"
+      range: [0, 10000000000]
+    - name: "Network_Out"
+      unit: "bytes_per_sec"
+      range: [0, 10000000000]
+    - name: "Database_Latency"
+      unit: "milliseconds"
+      range: [0.0, 10000.0]
+
+pipeline:
+  sequence_length: 60
+  stride: 1
+  min_data_points_required: 120
+  imputation_strategy: "linear"
+
+models:
+  active_model_type: "Autoencoder"
+  anomaly_sensitivity_threshold: 0.85
+  hyperparameters:
+    latent_dimension: 8
+    learning_rate: 0.001
+    weight_decay: 0.00001
+    training_epochs: 10
+    batch_size: 64
+
+notification_rules:
+  cooldown_period_minutes: 15
+  severity_tiers:
+    info:
+      notify_channels: []
+    warning:
+      notify_channels: ["email"]
+    critical:
+      notify_channels: ["email", "pagerduty", "slack"]

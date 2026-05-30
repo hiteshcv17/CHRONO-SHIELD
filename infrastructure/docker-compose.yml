@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Relational Database Storage (PostgreSQL)
+  # ============================================================================
+  db:
+    image: postgres:15-alpine
+    container_name: chronoshield_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secure_postgres_pass_998
+      POSTGRES_DB: chronoshield_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chronoshield_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chronoshield_net
+
+  # ============================================================================
+  # Caching & Streaming Layer (Redis)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: chronoshield_redis
+    restart: unless-stopped
+    command: redis-server --requirepass secure_redis_pass_112
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "secure_redis_pass_112", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chronoshield_net
+
+  # ============================================================================
+  # API Platform Microservice (FastAPI Backend)
+  # ============================================================================
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: chronoshield_backend
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - BACKEND_LOG_LEVEL=info
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=secure_postgres_pass_998
+      - POSTGRES_DB=chronoshield_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=secure_redis_pass_112
+      - SECRET_KEY=production_secret_override_token_889911
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chronoshield_net
+
+  # ============================================================================
+  # Temporal Anomaly AI Microservice (AI Engine)
+  # ============================================================================
+  ai-engine:
+    build:
+      context: ../ai-engine
+      dockerfile: Dockerfile
+    container_name: chronoshield_ai_engine
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - AI_LOG_LEVEL=info
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=secure_redis_pass_112
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - chronoshield_net
+
+  # ============================================================================
+  # Reverse Proxy & Edge Router (Nginx)
+  # ============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: chronoshield_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # In absolute production, we would map React build bundles statically to nginx HTML roots
+      # - ../frontend/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    networks:
+      - chronoshield_net
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  chronoshield_net:
+    driver: bridge

@@ -1,0 +1,17 @@
+export type ViewTab = 
+  | "health"
+  | "monitoring"
+  | "alerts"
+  | "forecasting"
+  | "correlation"
+  | "social"
+  | "geomap"
+  | "replay"
+  | "xai"
+  | "benchmark"
+  | "notifications"
+  | "reports"
+  | "assets"
+  | "simulation"
+  | "settings"
+  | "docs";

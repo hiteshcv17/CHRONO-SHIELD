@@ -1,0 +1,8 @@
+{
+    "models": {},
+    "tiers": {
+        "PRODUCTION": null,
+        "STAGING": null,
+        "CHALLENGER": null
+    }
+}

@@ -1,0 +1,44 @@
+# Ruff configuration for ChronoShield AI Engine
+
+# Target Python version
+target-version = "py39"
+
+# Core lint rules to enforce
+[lint]
+select = ["E", "F", "W", "I"]
+
+# Ignore stylistic and spacing warnings to prevent legacy code formatting from failing the build
+ignore = [
+    "F401", # Unused imports (common in test modules and lazy imports)
+    "F811", # Redefinition of unused variables/imports
+    "F841", # Local variable assigned but never used
+    "E402", # Module level import not at top of file
+    "E501", # Line too long (allows varying monitor widths/lengths)
+    "W293", # Blank line contains whitespace
+    "W291", # Trailing whitespace
+    "I001", # Import block is un-sorted or un-formatted
+    "E265", # Block comment should start with '# '
+    "E266", # Too many leading '#' for block comment
+    "E251", # Unexpected spaces around keyword / parameter equals
+    "E201", # Whitespace after '('
+    "E202", # Whitespace before ')'
+    "E203", # Whitespace before ':'
+    "E231", # Missing whitespace after ','
+    "E221", # Multiple spaces before operator
+    "E222", # Multiple spaces after operator
+    "E225", # Missing whitespace around operator
+    "E226", # Missing whitespace around arithmetic operator
+    "E701", # Multiple statements on one line (colon)
+    "E703", # Statement ends with a semicolon
+    "E722", # Do not use bare except (common in legacy quick exceptions)
+    "F541", # f-string without placeholders
+    "F402", # Import shadowed by loop variable
+]
+
+# Exclude virtual environments and cache directories
+exclude = [
+    ".git",
+    "venv",
+    ".pytest_cache",
+    "__pycache__",
+]

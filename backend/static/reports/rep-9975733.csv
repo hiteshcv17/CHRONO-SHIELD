@@ -1,0 +1,25 @@
+CHRONOSHIELD AI EXECUTIVE REPORT,WEEKLY
+Title,"Weekly Infrastructure Audit - May 21, 2026"
+Date Range,2026-05-21T19:12:13.535604 to 2026-05-28T19:12:13.535604
+
+EXECUTIVE KPI METRICS
+Total anomalies,3
+Critical count,1
+Warning count,1
+Info count,1
+Peak score,0.94
+Total alerts,2
+Resolved alerts,1
+Sla violations,1
+System health avg,91.0
+Lowest health sector,POWER
+Lowest health score,85.0
+Forecast mae,0.048
+Forecast rmse,0.062
+Forecast trend,INCREASING_RISK
+
+RAW ANOMALY INCIDENTS LOG
+Incident ID,Timestamp,Metric Name,Severity,Score,Description,Acknowledged
+an-mock1,2026-05-28T15:12:13.587117,CPU_Usage,CRITICAL,0.94,Core processor overload detected on node Gateway-4.,True
+an-mock2,2026-05-28T11:12:13.587134,Grid_Stability,WARNING,0.68,Voltage fluctuation detected on power grid feed East-12.,False
+an-mock3,2026-05-28T07:12:13.587143,Traffic_Flow,INFO,0.45,Minor transit congestion on Boulevard East.,True

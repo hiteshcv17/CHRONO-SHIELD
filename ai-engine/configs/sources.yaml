@@ -1,0 +1,111 @@
+# ==============================================================================
+# ChronoShield AI — Data Source Registry Configuration
+# ==============================================================================
+# This file is the single source of truth for all ingestion sources.
+# API keys must NEVER be committed here — inject via environment variables:
+#   CHRONOSHIELD_<SOURCE_NAME_UPPER>_API_KEY
+#
+# ConfigManager loads this file at startup. Use `orchestrator.reload()` for
+# hot-reloading changes without a process restart.
+
+sources:
+
+  # ----------------------------------------------------------------------------
+  # Weather Data Source
+  # Planned integration: OpenWeatherMap API / NOAA Climate API
+  # ----------------------------------------------------------------------------
+  - name: weather
+    enabled: true
+    endpoint: "https://api.openweathermap.org/data/2.5/forecast"
+    api_key: ""                  # Injected from CHRONOSHIELD_WEATHER_API_KEY
+    interval_seconds: 600        # Poll every 10 minutes
+    timeout_seconds: 10
+    max_retries: 3
+    retry_backoff: 1.5
+    extra:
+      units: "metric"
+      locations:
+        - { city: "New York",   country: "US", lat: 40.7128, lon: -74.0060 }
+        - { city: "London",     country: "GB", lat: 51.5074, lon: -0.1278  }
+        - { city: "Singapore",  country: "SG", lat: 1.3521,  lon: 103.8198 }
+      fields:
+        - temperature
+        - humidity
+        - wind_speed
+        - precipitation
+        - cloud_coverage
+
+  # ----------------------------------------------------------------------------
+  # Traffic Data Source
+  # Planned integration: HERE Traffic API / TomTom / Google Maps Platform
+  # ----------------------------------------------------------------------------
+  - name: traffic
+    enabled: true
+    endpoint: "https://traffic.ls.hereapi.com/traffic/6.3/flow.json"
+    api_key: ""                  # Injected from CHRONOSHIELD_TRAFFIC_API_KEY
+    interval_seconds: 300        # Poll every 5 minutes
+    timeout_seconds: 8
+    max_retries: 3
+    retry_backoff: 2.0
+    extra:
+      corridors:
+        - { id: "NYC-I95",     bbox: "-74.05,40.70,-73.97,40.78" }
+        - { id: "LA-I405",     bbox: "-118.50,33.96,-118.38,34.08" }
+        - { id: "LON-M25",     bbox: "-0.57,51.40,0.12,51.72"     }
+      fields:
+        - flow_speed
+        - jam_factor
+        - congestion_level
+        - incident_count
+
+  # ----------------------------------------------------------------------------
+  # Energy Dataset Source
+  # Planned integration: EIA Open Data API / OpenEI / ENTSO-E Transparency Platform
+  # ----------------------------------------------------------------------------
+  - name: energy
+    enabled: true
+    endpoint: "https://api.eia.gov/v2/electricity/rto/daily-region-data/data/"
+    api_key: ""                  # Injected from CHRONOSHIELD_ENERGY_API_KEY
+    interval_seconds: 3600       # Poll every 1 hour (energy data is lower frequency)
+    timeout_seconds: 15
+    max_retries: 2
+    retry_backoff: 2.0
+    extra:
+      regions:
+        - ERCO    # Texas (ERCOT)
+        - NYIS    # New York ISO
+        - CISO    # California ISO
+        - MISO    # Midcontinent ISO
+      fields:
+        - demand_mwh
+        - net_generation_mwh
+        - interchange_mwh
+        - fuel_mix
+
+  # ----------------------------------------------------------------------------
+  # Social Media Data Source
+  # Planned integration: Twitter/X API v2 / Reddit PRAW / Mastodon API
+  # ----------------------------------------------------------------------------
+  - name: social
+    enabled: true                # Enabled for automated social signals ingestion
+    endpoint: "https://api.twitter.com/2/tweets/search/recent"
+    api_key: ""                  # Injected from CHRONOSHIELD_SOCIAL_API_KEY
+    interval_seconds: 900        # Poll every 15 minutes
+    timeout_seconds: 12
+    max_retries: 2
+    retry_backoff: 3.0
+    extra:
+      query_terms:
+        - "infrastructure failure"
+        - "power outage"
+        - "network down"
+        - "service disruption"
+      max_results_per_request: 100
+      sentiment_analysis: true
+      fields:
+        - tweet_id
+        - author_id
+        - created_at
+        - text
+        - sentiment_score
+        - public_metrics

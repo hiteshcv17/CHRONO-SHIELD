@@ -1,0 +1,117 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # ── FRONTEND VERIFICATION ───────────────────────────────────────────────────
+  frontend-verification:
+    name: Frontend Quality & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js v20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run ESlint Checks
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run TypeScript & Bundler compilation
+        working-directory: frontend
+        run: npm run build
+
+  # ── BACKEND VERIFICATION ────────────────────────────────────────────────────
+  backend-verification:
+    name: Backend Lint, Style & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Backend Core Dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install black ruff
+
+      - name: Run Black Code Formatting Verification
+        working-directory: backend
+        run: black --check app
+
+      - name: Run Ruff Code Quality Stylechecks
+        working-directory: backend
+        run: ruff check app
+
+      - name: Execute Backend Integration & Unit Tests (253 tests)
+        working-directory: backend
+        env:
+          USE_SQLITE_DEV: "true"
+          ENVIRONMENT: "development"
+        run: |
+          PYTHONPATH=. pytest app/tests/
+
+  # ── AI ENGINE VERIFICATION ──────────────────────────────────────────────────
+  ai-engine-verification:
+    name: AI Engine Quality & Linters
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-ai-${{ hashFiles('ai-engine/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-ai-
+
+      - name: Install AI Engine Core Dependencies
+        working-directory: ai-engine
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install ruff black
+
+      - name: Run Black Formatting Verification
+        working-directory: ai-engine
+        run: |
+          if [ -d src ]; then black --check src; else black --check .; fi
+
+      - name: Run Ruff Quality Stylechecks
+        working-directory: ai-engine
+        run: |
+          if [ -d src ]; then ruff check src; else ruff check .; fi

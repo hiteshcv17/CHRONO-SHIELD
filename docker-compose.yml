@@ -1,0 +1,213 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: chronoshield-database
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - chronoshield-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: chronoshield-redis
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chronoshield-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chronoshield-backend
+    restart: always
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+      - PROJECT_NAME=${PROJECT_NAME}
+      - VERSION=${VERSION}
+      - BACKEND_HOST=${BACKEND_HOST}
+      - BACKEND_PORT=${BACKEND_PORT}
+      - BACKEND_LOG_LEVEL=${BACKEND_LOG_LEVEL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - POSTGRES_SERVER=${POSTGRES_SERVER}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB}
+      - REDIS_URL=${REDIS_URL}
+      - LOGS_DIR=${LOGS_DIR}
+    volumes:
+      - backend-logs:/app/logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chronoshield-network
+
+  ai-engine:
+    build:
+      context: ./ai-engine
+      dockerfile: Dockerfile
+    container_name: chronoshield-ai-engine
+    restart: always
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+      - PROJECT_NAME=${PROJECT_NAME}
+      - AI_ENGINE_HOST=${AI_ENGINE_HOST}
+      - AI_ENGINE_PORT=${AI_ENGINE_PORT}
+      - AI_LOG_LEVEL=${AI_LOG_LEVEL}
+      - AI_MODEL_DIR=${AI_MODEL_DIR}
+      - AI_TRAIN_BATCH_SIZE=${AI_TRAIN_BATCH_SIZE}
+      - AI_DEFAULT_EPOCHS=${AI_DEFAULT_EPOCHS}
+      - AI_ANOMALY_THRESHOLD=${AI_ANOMALY_THRESHOLD}
+      - SEQUENCE_LENGTH=${SEQUENCE_LENGTH}
+      - FEATURE_DIMENSION=${FEATURE_DIMENSION}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB}
+      - DATABASE_URL=${DATABASE_URL}
+      - AI_LOGS_DIR=/app/logs
+    volumes:
+      - ai-models:/app/models/registry
+      - ai-engine-logs:/app/logs
+    ports:
+      - "8001:8001"
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chronoshield-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: chronoshield-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - ai-engine
+    networks:
+      - chronoshield-network
+
+  # ===========================================================================
+  # Observability Stack
+  # ===========================================================================
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: chronoshield-prometheus
+    restart: always
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+      - ai-engine
+    networks:
+      - chronoshield-network
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: chronoshield-grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=chronoshield
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_EXPLORE_ENABLED=true
+      - GF_LOG_LEVEL=warn
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+    volumes:
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./configs/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - chronoshield-network
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: chronoshield-loki
+    restart: always
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./configs/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - chronoshield-network
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: chronoshield-promtail
+    restart: always
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./configs/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - backend-logs:/var/log/backend:ro
+      - ai-engine-logs:/var/log/ai-engine:ro
+    depends_on:
+      - loki
+    networks:
+      - chronoshield-network
+
+networks:
+  chronoshield-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+  backend-logs:
+  ai-models:
+  ai-engine-logs:
+  prometheus-data:
+  grafana-data:
+  loki-data:
