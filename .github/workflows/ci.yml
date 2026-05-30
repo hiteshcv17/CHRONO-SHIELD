@@ -75,6 +75,7 @@ jobs:
         env:
           USE_SQLITE_DEV: "true"
           ENVIRONMENT: "development"
+          REDIS_HOST: "localhost"
         run: |
           PYTHONPATH=. pytest app/tests/
 

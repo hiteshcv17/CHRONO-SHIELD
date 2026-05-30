@@ -139,6 +139,25 @@ class TestAlertAPI:
         from sqlalchemy import select
 
         async def seed_test_alerts():
+            from app.db.session import engine
+            from app.models.base import Base
+            from app.models.anomaly import AnomalyRecord  # noqa: F401
+            from app.models.weather import WeatherRecordModel  # noqa: F401
+            from app.models.traffic import TrafficRecordModel  # noqa: F401
+            from app.models.energy import EnergyRecordModel  # noqa: F401
+            from app.models.social import SocialComplaintRecord  # noqa: F401
+            from app.models.user import User  # noqa: F401
+            from app.models.notification import (  # noqa: F401
+                NotificationChannelConfig,
+                NotificationDeliveryLog,
+            )
+            from app.models.report import Report  # noqa: F401
+            from app.models.asset import Asset  # noqa: F401
+            from app.models.system_setting import SystemSetting  # noqa: F401
+
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+
             async with async_session_factory() as session:
                 alert_a = PrioritizedAlertRecord(
                     id="alert-001",
