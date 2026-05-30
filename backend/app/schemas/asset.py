@@ -5,17 +5,28 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class AssetBase(BaseModel):
     name: str = Field(..., description="Human-readable asset identifier")
-    asset_type: Literal["TRANSFORMER", "TRAFFIC_ZONE", "WATER_PIPELINE", "PUBLIC_SYSTEM"] = Field(..., description="Infrastructure category")
-    status: Literal["NOMINAL", "WARNING", "CRITICAL", "MAINTENANCE", "DECOMMISSIONED"] = Field("NOMINAL", description="Operational health status")
+    asset_type: Literal[
+        "TRANSFORMER", "TRAFFIC_ZONE", "WATER_PIPELINE", "PUBLIC_SYSTEM"
+    ] = Field(..., description="Infrastructure category")
+    status: Literal[
+        "NOMINAL", "WARNING", "CRITICAL", "MAINTENANCE", "DECOMMISSIONED"
+    ] = Field("NOMINAL", description="Operational health status")
     region: str = Field(..., description="Operational geographic region tag")
-    dynamic_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Dynamic key-value asset attributes")
-    installation_date: Optional[datetime] = Field(default_factory=datetime.utcnow, description="Date of installation")
-    last_maintenance: Optional[datetime] = Field(default_factory=datetime.utcnow, description="Date of last maintenance check")
+    dynamic_metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Dynamic key-value asset attributes"
+    )
+    installation_date: Optional[datetime] = Field(
+        default_factory=datetime.utcnow, description="Date of installation"
+    )
+    last_maintenance: Optional[datetime] = Field(
+        default_factory=datetime.utcnow, description="Date of last maintenance check"
+    )
 
     @field_validator("name", "region")
     @classmethod
     def sanitize_fields(cls, v: str) -> str:
         from app.utils.security import sanitize_text
+
         return sanitize_text(v)
 
 
@@ -25,8 +36,12 @@ class AssetCreate(AssetBase):
 
 class AssetUpdate(BaseModel):
     name: Optional[str] = None
-    asset_type: Optional[Literal["TRANSFORMER", "TRAFFIC_ZONE", "WATER_PIPELINE", "PUBLIC_SYSTEM"]] = None
-    status: Optional[Literal["NOMINAL", "WARNING", "CRITICAL", "MAINTENANCE", "DECOMMISSIONED"]] = None
+    asset_type: Optional[
+        Literal["TRANSFORMER", "TRAFFIC_ZONE", "WATER_PIPELINE", "PUBLIC_SYSTEM"]
+    ] = None
+    status: Optional[
+        Literal["NOMINAL", "WARNING", "CRITICAL", "MAINTENANCE", "DECOMMISSIONED"]
+    ] = None
     region: Optional[str] = None
     dynamic_metadata: Optional[Dict[str, Any]] = None
     installation_date: Optional[datetime] = None
@@ -38,7 +53,9 @@ class AssetResponse(BaseModel):
 
     id: str
     name: str
-    asset_type: Literal["TRANSFORMER", "TRAFFIC_ZONE", "WATER_PIPELINE", "PUBLIC_SYSTEM"]
+    asset_type: Literal[
+        "TRANSFORMER", "TRAFFIC_ZONE", "WATER_PIPELINE", "PUBLIC_SYSTEM"
+    ]
     status: Literal["NOMINAL", "WARNING", "CRITICAL", "MAINTENANCE", "DECOMMISSIONED"]
     region: str
     dynamic_metadata: Optional[Dict[str, Any]] = None

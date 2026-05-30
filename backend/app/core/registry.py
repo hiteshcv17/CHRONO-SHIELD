@@ -11,6 +11,7 @@ Usage:
 To register a new model:
     PipelineRegistry.register("MyModel", MyModelPipeline)
 """
+
 from typing import Dict, Type
 from app.core.pipeline import (
     ForecastingPipeline,
@@ -25,10 +26,11 @@ class PipelineRegistry:
     Static registry mapping model names to pipeline classes.
     Instances are created fresh per benchmark run to ensure state isolation.
     """
+
     _registry: Dict[str, Type[ForecastingPipeline]] = {
         "Prophet": ProphetPipeline,
-        "ARIMA":   ArimaPipeline,
-        "ETS":     EtsPipeline,
+        "ARIMA": ArimaPipeline,
+        "ETS": EtsPipeline,
     }
 
     @classmethod

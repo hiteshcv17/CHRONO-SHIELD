@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+
 class BaseModel(ABC):
     """
     Abstract Base Class for all anomaly detection models in ChronoShield AI.

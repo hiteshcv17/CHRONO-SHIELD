@@ -16,8 +16,12 @@ class DependencyStatus(BaseModel):
 
 class StatusResponse(BaseModel):
     status: str = Field(..., description="Aggregated systems diagnostic rating")
-    dependencies: List[DependencyStatus] = Field(..., description="Statuses of database and cache streams")
-    system_metrics: Dict[str, Any] = Field(..., description="Memory utilization and gateway load indicators")
+    dependencies: List[DependencyStatus] = Field(
+        ..., description="Statuses of database and cache streams"
+    )
+    system_metrics: Dict[str, Any] = Field(
+        ..., description="Memory utilization and gateway load indicators"
+    )
 
 
 class VersionResponse(BaseModel):

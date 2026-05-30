@@ -10,14 +10,13 @@ from app.core.security import decode_token
 from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/login",
-    auto_error=False
+    tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False
 )
 
 
 async def get_current_user(
     db: AsyncSession = Depends(get_db_session),
-    token: Optional[str] = Depends(oauth2_scheme)
+    token: Optional[str] = Depends(oauth2_scheme),
 ) -> User:
     """
     Dependency injection to fetch the authenticated User from the database.
@@ -50,7 +49,7 @@ async def get_current_user(
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User account is deactivated"
+            detail="User account is deactivated",
         )
 
     return user
@@ -61,6 +60,7 @@ class RoleChecker:
     FastAPI dependency that enforces user roles.
     Allows access if the user's role is in the allowed list, otherwise raises 403.
     """
+
     def __init__(self, allowed_roles: list[str]):
         self.allowed_roles = allowed_roles
 
@@ -68,7 +68,7 @@ class RoleChecker:
         if current_user.role not in self.allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied: role '{current_user.role}' lacks required permission."
+                detail=f"Access denied: role '{current_user.role}' lacks required permission.",
             )
         return current_user
 
@@ -77,4 +77,3 @@ class RoleChecker:
 require_admin = RoleChecker(["ADMIN"])
 require_analyst = RoleChecker(["ADMIN", "ANALYST"])
 require_viewer = RoleChecker(["ADMIN", "ANALYST", "VIEWER"])
-

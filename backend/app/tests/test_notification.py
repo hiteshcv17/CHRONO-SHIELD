@@ -25,7 +25,7 @@ class TestNotification:
             username="mockanalyst",
             email="analyst@chronoshield.ai",
             role="ANALYST",
-            is_active=True
+            is_active=True,
         )
         app.dependency_overrides[get_current_user] = lambda: mock_user
         yield
@@ -47,7 +47,7 @@ class TestNotification:
             occurrence_count=5,
             timestamp=datetime.utcnow(),
             last_occurrence=datetime.utcnow(),
-            description="CPU load spiked beyond normal margins."
+            description="CPU load spiked beyond normal margins.",
         )
 
         # Active state template
@@ -57,7 +57,9 @@ class TestNotification:
         assert "92.5" in msg
 
         # Escalated state template
-        title, msg = NotificationDeliveryService.render_template("ESCALATED", mock_alert)
+        title, msg = NotificationDeliveryService.render_template(
+            "ESCALATED", mock_alert
+        )
         assert "SLA BREACH & ESCALATION" in title
         assert "SLA VIOLATION DECLARED" in msg
 
@@ -80,9 +82,10 @@ class TestNotification:
             occurrence_count=1,
             timestamp=datetime.utcnow(),
             last_occurrence=datetime.utcnow(),
-            description="Suppressed alert."
+            description="Suppressed alert.",
         )
         from app.services.notification_service import _MOCK_LOGS_REGISTRY
+
         initial_count = len(_MOCK_LOGS_REGISTRY)
         await NotificationDeliveryService.trigger_notifications(None, mock_alert)
         assert len(_MOCK_LOGS_REGISTRY) == initial_count
@@ -105,11 +108,11 @@ class TestNotification:
             "recipient_email": "updated-email@chronoshield.ai",
             "smtp_host": "127.0.0.1",
             "smtp_port": 1025,
-            "allowed_severities": ["HIGH", "CRITICAL"]
+            "allowed_severities": ["HIGH", "CRITICAL"],
         }
         response = client.put(
             "/api/v1/notifications/channels/EMAIL",
-            json={"config": json.dumps(new_config), "enabled": True}
+            json={"config": json.dumps(new_config), "enabled": True},
         )
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -127,9 +130,11 @@ class TestNotification:
         payload = {
             "channel": "EMAIL",
             "recipient": "test-recipient@chronoshield.ai",
-            "message": "Verify notification pipeline connectivity."
+            "message": "Verify notification pipeline connectivity.",
         }
-        response = client.post("/api/v1/notifications/channels/EMAIL/test", json=payload)
+        response = client.post(
+            "/api/v1/notifications/channels/EMAIL/test", json=payload
+        )
         assert response.status_code == status.HTTP_202_ACCEPTED
         data = response.json()
         assert data["status"] == "PENDING"
@@ -141,7 +146,7 @@ class TestNotification:
         # Insert a mock log directly
         from app.services.notification_service import _MOCK_LOGS_REGISTRY
         from app.models.notification import NotificationDeliveryLog
-        
+
         test_log = NotificationDeliveryLog(
             id="log-unit-test-1",
             channel="WEBHOOK",
@@ -152,7 +157,7 @@ class TestNotification:
             status="SENT",
             retry_count=0,
             max_retries=3,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
         _MOCK_LOGS_REGISTRY.insert(0, test_log)
 

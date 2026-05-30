@@ -104,7 +104,9 @@ class InMemoryTokenStore:
                 count += 1
         return count
 
-    async def scan(self, cursor: int = 0, match: Optional[str] = None, count: Optional[int] = None) -> tuple[int, list[str]]:
+    async def scan(
+        self, cursor: int = 0, match: Optional[str] = None, count: Optional[int] = None
+    ) -> tuple[int, list[str]]:
         """Mock implementation of redis scan command for InMemoryTokenStore."""
         keys = list(self._store.keys())
         if match:
@@ -121,7 +123,9 @@ class InMemoryTokenStore:
 
 # Initialize Redis client in production or if a remote host/url is configured, otherwise fallback to InMemoryTokenStore
 if settings.ENVIRONMENT == "production" or (settings.REDIS_HOST != "localhost"):
-    logger.info(f"Connecting to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}...")
+    logger.info(
+        f"Connecting to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}..."
+    )
     redis_client = aioredis.from_url(
         settings.REDIS_URL,
         decode_responses=True,
@@ -131,7 +135,9 @@ else:
     redis_client = InMemoryTokenStore()
 
 
-async def get_redis_client() -> AsyncGenerator[Union[aioredis.Redis, InMemoryTokenStore], None]:
+async def get_redis_client() -> (
+    AsyncGenerator[Union[aioredis.Redis, InMemoryTokenStore], None]
+):
     """
     FastAPI dependency that yields either the async Redis client or the in-memory token store.
     """

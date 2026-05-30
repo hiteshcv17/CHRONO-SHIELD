@@ -85,7 +85,7 @@ class UserService:
             email=user_in.email,
             hashed_password=get_password_hash(user_in.password),
             role=user_in.role or "VIEWER",
-            is_active=True
+            is_active=True,
         )
         try:
             db.add(new_user)

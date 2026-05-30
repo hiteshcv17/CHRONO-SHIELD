@@ -16,12 +16,16 @@ router = APIRouter()
 @cache_response(ttl=CacheTTL.ASSETS.value, prefix="assets")
 async def list_assets(
     asset_type: Optional[str] = Query(None, description="Filter by asset category"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by operational status"),
+    status_filter: Optional[str] = Query(
+        None, alias="status", description="Filter by operational status"
+    ),
     region: Optional[str] = Query(None, description="Filter by operational region"),
-    name: Optional[str] = Query(None, description="Filter by asset name (fuzzy search)"),
+    name: Optional[str] = Query(
+        None, description="Filter by asset name (fuzzy search)"
+    ),
     limit: int = Query(50, ge=1, le=100, description="Retrieve limit"),
     db: AsyncSession = Depends(get_db_session),
-    _ = Depends(require_viewer)
+    _=Depends(require_viewer),
 ) -> List[AssetResponse]:
     """
     Retrieve logs of registered physical infrastructure assets.
@@ -32,7 +36,7 @@ async def list_assets(
         status=status_filter,
         region=region,
         name=name,
-        limit=limit
+        limit=limit,
     )
     return [AssetResponse.model_validate(a) for a in assets]
 
@@ -40,9 +44,7 @@ async def list_assets(
 @router.get("/{asset_id}", response_model=AssetResponse, status_code=status.HTTP_200_OK)
 @cache_response(ttl=CacheTTL.ASSETS.value, prefix="assets")
 async def get_asset_by_id(
-    asset_id: str,
-    db: AsyncSession = Depends(get_db_session),
-    _ = Depends(require_viewer)
+    asset_id: str, db: AsyncSession = Depends(get_db_session), _=Depends(require_viewer)
 ) -> AssetResponse:
     """
     Retrieve a single infrastructure asset's detailed schema and dynamic metadata.
@@ -51,7 +53,7 @@ async def get_asset_by_id(
     if not asset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset with ID '{asset_id}' not found."
+            detail=f"Asset with ID '{asset_id}' not found.",
         )
     return AssetResponse.model_validate(asset)
 
@@ -60,7 +62,7 @@ async def get_asset_by_id(
 async def register_new_asset(
     payload: AssetCreate,
     db: AsyncSession = Depends(get_db_session),
-    _ = Depends(require_analyst)
+    _=Depends(require_analyst),
 ) -> AssetResponse:
     """
     Register a new physical infrastructure asset under database monitoring.
@@ -75,7 +77,7 @@ async def modify_registered_asset(
     asset_id: str,
     payload: AssetUpdate,
     db: AsyncSession = Depends(get_db_session),
-    _ = Depends(require_analyst)
+    _=Depends(require_analyst),
 ) -> AssetResponse:
     """
     Modify attributes or dynamic key-value metadata logs of an active asset.
@@ -85,17 +87,12 @@ async def modify_registered_asset(
         await invalidate_cache_by_pattern("assets:*")
         return res
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def decommission_registered_asset(
-    asset_id: str,
-    db: AsyncSession = Depends(get_db_session),
-    _ = Depends(require_admin)
+    asset_id: str, db: AsyncSession = Depends(get_db_session), _=Depends(require_admin)
 ):
     """
     Decommission and remove an asset record from database tracking registries.
@@ -104,7 +101,7 @@ async def decommission_registered_asset(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset with ID '{asset_id}' not found or could not be deleted."
+            detail=f"Asset with ID '{asset_id}' not found or could not be deleted.",
         )
     await invalidate_cache_by_pattern("assets:*")
     return status.HTTP_204_NO_CONTENT

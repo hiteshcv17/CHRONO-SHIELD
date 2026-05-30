@@ -27,20 +27,20 @@ async def lifespan(app: FastAPI):
     # ASGI Startup tasks
     logger.info("Initializing modular AI Engine microservice service layer...")
     app.state.registry = ModelRegistryManager()
-    
+
     # Pre-verify active PRODUCTION model
     prod_path = app.state.registry.get_tier_checkpoint("PRODUCTION")
     if prod_path:
         logger.info(f"Active PRODUCTION model checkpoint detected: {prod_path}")
     else:
         logger.warning("No active checkpoint promoted to PRODUCTION tier yet.")
-        
+
     # Initialize and start background data ingestion orchestrator
     logger.info("Starting background ingestion orchestrator...")
     orchestrator = IngestionOrchestrator()
     app.state.orchestrator = orchestrator
     await orchestrator.start()
-    
+
     yield
     # ASGI Shutdown tasks
     logger.info("Shutting down background ingestion orchestrator...")
@@ -54,13 +54,14 @@ app = FastAPI(
     title="ChronoShield AI Engine API",
     description="Production-grade REST microservice interface for automated time-series anomaly detection & model registry.",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
 # ==============================================================================
 # HTTP Middleware — Prometheus metrics recording
 # ==============================================================================
+
 
 @app.middleware("http")
 async def prometheus_middleware(request: Request, call_next):
@@ -75,14 +76,14 @@ async def prometheus_middleware(request: Request, call_next):
     if request.url.path != "/metrics":
         try:
             from src.utils.prometheus import HTTP_REQUEST_COUNT, HTTP_REQUEST_LATENCY
+
             HTTP_REQUEST_COUNT.labels(
                 method=request.method,
                 endpoint=request.url.path,
-                status=response.status_code
+                status=response.status_code,
             ).inc()
             HTTP_REQUEST_LATENCY.labels(
-                method=request.method,
-                endpoint=request.url.path
+                method=request.method, endpoint=request.url.path
             ).observe(duration)
         except Exception as e:
             logger.error(f"Failed to record Prometheus HTTP metrics: {e}")
@@ -98,6 +99,7 @@ app.include_router(registry.router, prefix="/api/v1")
 # ==============================================================================
 # Platform health & metrics endpoints
 # ==============================================================================
+
 
 @app.get("/health", tags=["System Health"])
 def health_check():
@@ -117,7 +119,7 @@ def health_check():
         "environment": ai_settings.ENVIRONMENT,
         "active_production_model": prod_model,
         "uptime_seconds": round(time.monotonic() - _START_TIME, 1),
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
 
@@ -129,4 +131,5 @@ def metrics_endpoint():
     model training durations, and ingestion pipeline throughput.
     """
     from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)

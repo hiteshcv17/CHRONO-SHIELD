@@ -6,9 +6,10 @@ class TestHealthDiagnostics:
 
     def test_infrastructure_diagnostics_calculation(self):
         """Verify the health calculations, logistic failure probability curves, and risk tiers."""
+
         async def run_test():
             return await HealthService.get_infrastructure_diagnostics(None)
-            
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -18,10 +19,10 @@ class TestHealthDiagnostics:
         assert "overall_health_score" in result
         assert "active_risks_count" in result
         assert "reports" in result
-        
+
         # At least 5 critical nodes must be classified
         assert len(result["reports"]) == 5
-        
+
         # Verify node fields
         for r in result["reports"]:
             assert "name" in r
@@ -35,9 +36,11 @@ class TestHealthDiagnostics:
             assert "risk_tier" in r
             assert r["risk_tier"] in ["NOMINAL", "MEDIUM", "HIGH", "CRITICAL"]
             assert "explanation" in r
-            
+
         # Verify specific stressed Redis parameters conform to targets
-        redis_report = next(r for r in result["reports"] if r["name"] == "chronoshield-redis-cache")
+        redis_report = next(
+            r for r in result["reports"] if r["name"] == "chronoshield-redis-cache"
+        )
         assert redis_report["health_score"] <= 66
         assert redis_report["failure_probability"] >= 78.0
         assert redis_report["remaining_useful_life_days"] == 9
@@ -54,6 +57,7 @@ class TestHealthAPI:
     def setup_class(cls):
         from fastapi.testclient import TestClient
         from app.main import app
+
         cls.client = TestClient(app)
 
     def test_get_city_health_components_api(self):
@@ -66,14 +70,26 @@ class TestHealthAPI:
 
         # Check all 5 sectors are represented
         categories = {r["category"] for r in data["reports"]}
-        assert categories == {"POWER", "TRAFFIC", "WATER", "INTERNET", "PUBLIC_INFRASTRUCTURE"}
+        assert categories == {
+            "POWER",
+            "TRAFFIC",
+            "WATER",
+            "INTERNET",
+            "PUBLIC_INFRASTRUCTURE",
+        }
 
         for report in data["reports"]:
             assert "category" in report
             assert "health_score" in report
             assert 5 <= report["health_score"] <= 100
             assert "risk_level" in report
-            assert report["risk_level"] in ["NOMINAL", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
+            assert report["risk_level"] in [
+                "NOMINAL",
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "CRITICAL",
+            ]
             assert "confidence_score" in report
             assert 20 <= report["confidence_score"] <= 100
             assert "metrics" in report
@@ -98,4 +114,3 @@ class TestHealthAPI:
         assert "active_risks_count" in data
         assert "reports" in data
         assert len(data["reports"]) == 5
-

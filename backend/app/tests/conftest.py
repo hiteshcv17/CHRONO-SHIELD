@@ -11,10 +11,7 @@ def override_auth_for_tests():
     to prevent breaking existing telemetry tests.
     """
     app.dependency_overrides[get_current_user] = lambda: User(
-        id="usr-testadmin",
-        username="admin",
-        role="ADMIN",
-        is_active=True
+        id="usr-testadmin", username="admin", role="ADMIN", is_active=True
     )
     yield
     app.dependency_overrides.clear()

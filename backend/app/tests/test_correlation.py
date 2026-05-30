@@ -26,7 +26,9 @@ class TestCorrelationScaffolding:
         index_names = {idx.name for idx in indexes}
         assert "idx_energy_loc_time" in index_names
 
-        composite_idx = next(idx for idx in indexes if idx.name == "idx_energy_loc_time")
+        composite_idx = next(
+            idx for idx in indexes if idx.name == "idx_energy_loc_time"
+        )
         idx_cols = [col.name for col in composite_idx.columns]
         assert "location" in idx_cols
         assert "timestamp" in idx_cols
@@ -59,14 +61,20 @@ class TestCorrelationScaffolding:
         dt1 = datetime(2026, 5, 28, 15, 27, 43)
         dt2 = datetime(2026, 5, 28, 15, 20, 0)
         # Should round down to 15:20:00
-        assert CorrelationService.round_timestamp(dt1) == datetime(2026, 5, 28, 15, 20, 0)
-        assert CorrelationService.round_timestamp(dt2) == datetime(2026, 5, 28, 15, 20, 0)
+        assert CorrelationService.round_timestamp(dt1) == datetime(
+            2026, 5, 28, 15, 20, 0
+        )
+        assert CorrelationService.round_timestamp(dt2) == datetime(
+            2026, 5, 28, 15, 20, 0
+        )
 
     def test_activity_intensity_calculation(self):
         """Verify the 24x7 activity intensity grid is calculated correctly."""
         import asyncio
+
         async def run_test():
             return await CorrelationService.get_activity_intensity(None, "New York")
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -85,8 +93,10 @@ class TestCorrelationScaffolding:
     def test_anomaly_concentration_calculation(self):
         """Verify the 24x7 anomaly concentration grid is calculated correctly."""
         import asyncio
+
         async def run_test():
             return await CorrelationService.get_anomaly_concentration(None, "New York")
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -114,6 +124,7 @@ class TestCorrelationAPI:
     def setup_class(cls):
         from fastapi.testclient import TestClient
         from app.main import app
+
         cls.client = TestClient(app)
 
     def test_get_correlation_matrix_api(self):
@@ -141,7 +152,9 @@ class TestCorrelationAPI:
 
     def test_get_correlation_matrix_with_window_days(self):
         """Assert GET /matrix filters results correctly with window_days parameter."""
-        response = self.client.get("/api/v1/correlation/matrix?city=New York&window_days=7")
+        response = self.client.get(
+            "/api/v1/correlation/matrix?city=New York&window_days=7"
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -149,7 +162,9 @@ class TestCorrelationAPI:
 
     def test_get_correlation_graph_api(self):
         """Assert GET /graph returns nodes and edges above threshold."""
-        response = self.client.get("/api/v1/correlation/graph?city=New York&threshold=0.3")
+        response = self.client.get(
+            "/api/v1/correlation/graph?city=New York&threshold=0.3"
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -161,7 +176,13 @@ class TestCorrelationAPI:
             assert "id" in node
             assert "label" in node
             assert "group" in node
-            assert node["group"] in ["weather", "traffic", "energy", "anomaly", "social"]
+            assert node["group"] in [
+                "weather",
+                "traffic",
+                "energy",
+                "anomaly",
+                "social",
+            ]
 
         # Edges should connect valid nodes and have weight above threshold
         node_ids = {node["id"] for node in data["nodes"]}
@@ -175,7 +196,9 @@ class TestCorrelationAPI:
 
     def test_get_time_overlays_api(self):
         """Assert GET /overlays aligns timestamps and parallel series."""
-        response = self.client.get("/api/v1/correlation/overlays?city=New York&window_days=1")
+        response = self.client.get(
+            "/api/v1/correlation/overlays?city=New York&window_days=1"
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -185,7 +208,7 @@ class TestCorrelationAPI:
         # Timestamps and series list lengths must be aligned
         timestamps = data["timestamps"]
         series = data["series"]
-        
+
         # Verify social metrics exist in aligned series
         assert "complaints_count" in series
         assert "complaints_urgency" in series
@@ -197,7 +220,9 @@ class TestCorrelationAPI:
 
     def test_get_synchronized_anomalies_api(self):
         """Assert GET /synchronized-anomalies returns concurrent events."""
-        response = self.client.get("/api/v1/correlation/synchronized-anomalies?city=New York")
+        response = self.client.get(
+            "/api/v1/correlation/synchronized-anomalies?city=New York"
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -228,6 +253,3 @@ class TestCorrelationAPI:
             assert "description" in rel
             assert -60 <= rel["lag_minutes"] <= 60
             assert -1.0 <= rel["correlation"] <= 1.0
-
-
-

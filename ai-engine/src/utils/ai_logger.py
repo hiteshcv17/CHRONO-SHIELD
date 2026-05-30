@@ -42,6 +42,7 @@ class AISubsystemLogger:
     Centralized JSONL logger for telemetry ML inference events, training milestones, and ingestion cycles.
     Saves structured records under `ai-engine/logs/ml_telemetry.jsonl` using append-only formatting.
     """
+
     def __init__(self, log_path: str = "./ai-engine/logs/ml_telemetry.jsonl"):
         self.log_path = log_path
         os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
@@ -60,7 +61,7 @@ class AISubsystemLogger:
         latency_ms: float,
         is_anomaly: bool,
         severity: str,
-        threshold: float = 0.85
+        threshold: float = 0.85,
     ) -> InferenceLogEntry:
         """
         Record a single real-time inference prediction transaction.
@@ -73,17 +74,13 @@ class AISubsystemLogger:
             "threshold": round(float(threshold), 4),
             "latency_ms": round(float(latency_ms), 3),
             "is_anomaly": bool(is_anomaly),
-            "severity": severity
+            "severity": severity,
         }
         self._append_log(record)
         return record
 
     def log_training(
-        self,
-        model_version: str,
-        epoch: int,
-        loss: float,
-        metrics: Dict[str, Any]
+        self, model_version: str, epoch: int, loss: float, metrics: Dict[str, Any]
     ) -> TrainingLogEntry:
         """
         Record a training milestone epoch or completion metrics.
@@ -94,7 +91,7 @@ class AISubsystemLogger:
             "model_version": model_version,
             "epoch": int(epoch),
             "loss": round(float(loss), 6),
-            "metrics": metrics
+            "metrics": metrics,
         }
         self._append_log(record)
         return record
@@ -105,7 +102,7 @@ class AISubsystemLogger:
         status: str,
         records_count: int,
         latency_ms: float,
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
     ) -> IngestionLogEntry:
         """
         Record an ingestion cycle completion status.
@@ -117,7 +114,7 @@ class AISubsystemLogger:
             "status": status,
             "records_count": int(records_count),
             "latency_ms": round(float(latency_ms), 3),
-            "error_message": error_message
+            "error_message": error_message,
         }
         self._append_log(record)
         return record

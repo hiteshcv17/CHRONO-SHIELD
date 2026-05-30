@@ -14,9 +14,9 @@ def sanitize_text(v: str) -> str:
     """
     if not isinstance(v, str):
         return v
-        
+
     # Step A: Strip any raw HTML tags
     cleaned = _HTML_TAG_PATTERN.sub("", v)
-    
+
     # Step B: Escape HTML characters and strip whitespace
     return html.escape(cleaned.strip())

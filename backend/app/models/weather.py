@@ -6,6 +6,7 @@ class WeatherRecordModel(Base):
     """
     SQLAlchemy representation of historical atmospheric weather telemetry.
     """
+
     __tablename__ = "weather_records"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
@@ -20,6 +21,4 @@ class WeatherRecordModel(Base):
     cloud_coverage_pct = Column(Float)
 
     # Composite index for optimized chronological range queries
-    __table_args__ = (
-        Index("idx_weather_loc_time", "location", timestamp.desc()),
-    )
+    __table_args__ = (Index("idx_weather_loc_time", "location", timestamp.desc()),)

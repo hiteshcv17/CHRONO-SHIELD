@@ -50,8 +50,13 @@ class WeatherDataSource(BaseDataSource):
             ),
             interval_seconds=self.config.interval_seconds,
             supported_fields=[
-                "timestamp", "location", "temperature_c", "humidity_pct",
-                "wind_speed_ms", "precipitation_mm", "cloud_coverage_pct",
+                "timestamp",
+                "location",
+                "temperature_c",
+                "humidity_pct",
+                "wind_speed_ms",
+                "precipitation_mm",
+                "cloud_coverage_pct",
             ],
             tags=["weather", "climate", "atmospheric", "real-time"],
         )
@@ -88,14 +93,18 @@ class WeatherDataSource(BaseDataSource):
                 lon = loc.get("lon")
 
                 if lat is None or lon is None:
-                    logger.warning(f"[{meta.name}] Skipping location {city} due to missing coordinates.")
+                    logger.warning(
+                        f"[{meta.name}] Skipping location {city} due to missing coordinates."
+                    )
                     continue
 
                 try:
                     record = await self._fetch_location_weather(session, city, lat, lon)
                     records.append(record)
                 except Exception as e:
-                    logger.error(f"[{meta.name}] Failed to fetch weather for {city}: {e}")
+                    logger.error(
+                        f"[{meta.name}] Failed to fetch weather for {city}: {e}"
+                    )
                     errors.append(f"{city}: {str(e)}")
 
         status = IngestionStatus.SUCCESS
@@ -204,7 +213,9 @@ class WeatherDataSource(BaseDataSource):
         else:
             return self._parse_open_meteo_response(city, lat, lon, data)
 
-    async def _http_get_with_retry(self, session: aiohttp.ClientSession, url: str) -> Dict[str, Any]:
+    async def _http_get_with_retry(
+        self, session: aiohttp.ClientSession, url: str
+    ) -> Dict[str, Any]:
         """
         Internal HTTP client wrapper enforcing timeouts, retries, and exponential back-offs.
         """
@@ -217,7 +228,7 @@ class WeatherDataSource(BaseDataSource):
                 async with session.get(url, timeout=timeout) as response:
                     if response.status == 200:
                         return await response.json()
-                    
+
                     # Handle API key unauthorized by logging and raising failover
                     if response.status == 401:
                         logger.warning(
@@ -230,7 +241,7 @@ class WeatherDataSource(BaseDataSource):
 
             except Exception as e:
                 if attempt < retries:
-                    sleep_time = backoff * (2 ** attempt)
+                    sleep_time = backoff * (2**attempt)
                     logger.warning(
                         f"[Weather Ingestion] Fetch attempt {attempt + 1} failed: {e}. "
                         f"Retrying in {sleep_time:.1f}s..."
@@ -246,6 +257,7 @@ class WeatherDataSource(BaseDataSource):
                         # Re-run the fetch using Open-Meteo URL format
                         # Extract coordinates from the URL or query
                         import re
+
                         lat_match = re.search(r"lat=([0-9.-]+)", url)
                         lon_match = re.search(r"lon=([0-9.-]+)", url)
                         if lat_match and lon_match:
@@ -255,8 +267,12 @@ class WeatherDataSource(BaseDataSource):
                                 f"https://api.open-meteo.com/v1/forecast"
                                 f"?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation"
                             )
-                            logger.info(f"[Weather Ingestion] Triggering fallback query to Open-Meteo: {fallback_url}")
-                            async with session.get(fallback_url, timeout=timeout) as fb_resp:
+                            logger.info(
+                                f"[Weather Ingestion] Triggering fallback query to Open-Meteo: {fallback_url}"
+                            )
+                            async with session.get(
+                                fallback_url, timeout=timeout
+                            ) as fb_resp:
                                 if fb_resp.status == 200:
                                     return await fb_resp.json()
                     raise e
@@ -267,13 +283,15 @@ class WeatherDataSource(BaseDataSource):
     # Response Translators
     # ------------------------------------------------------------------
 
-    def _parse_owm_response(self, city: str, lat: float, lon: float, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_owm_response(
+        self, city: str, lat: float, lon: float, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Translate OpenWeatherMap response payload into standard pipeline format."""
         temp = data.get("main", {}).get("temp")
         hum = data.get("main", {}).get("humidity")
         wind = data.get("wind", {}).get("speed")
         clouds = data.get("clouds", {}).get("all")
-        
+
         # Rainfall parsing
         rain_1h = data.get("rain", {}).get("1h", 0.0)
         rain_3h = data.get("rain", {}).get("3h", 0.0)
@@ -292,7 +310,9 @@ class WeatherDataSource(BaseDataSource):
             "_source": "OpenWeatherMap",
         }
 
-    def _parse_open_meteo_response(self, city: str, lat: float, lon: float, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_open_meteo_response(
+        self, city: str, lat: float, lon: float, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Translate Open-Meteo response payload into standard pipeline format."""
         current = data.get("current", {})
         temp = current.get("temperature_2m")

@@ -9,19 +9,23 @@ class UserBase(BaseModel):
         min_length=3,
         max_length=50,
         pattern=r"^[a-zA-Z0-9_-]+$",
-        description="Alphanumeric username with optional underscores and hyphens"
+        description="Alphanumeric username with optional underscores and hyphens",
     )
     email: Optional[str] = Field(
         None,
         max_length=100,
         pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$",
-        description="Optional valid email address"
+        description="Optional valid email address",
     )
 
 
 class UserRegister(UserBase):
-    password: str = Field(..., min_length=6, max_length=100, description="Plaintext password")
-    role: Optional[Literal["ADMIN", "ANALYST", "VIEWER"]] = Field("VIEWER", description="Assigned user role")
+    password: str = Field(
+        ..., min_length=6, max_length=100, description="Plaintext password"
+    )
+    role: Optional[Literal["ADMIN", "ANALYST", "VIEWER"]] = Field(
+        "VIEWER", description="Assigned user role"
+    )
 
 
 class UserLogin(BaseModel):

@@ -2,14 +2,22 @@
 Phase 26 — Geospatial Infrastructure Visualization
 Automated verification suite for geo_service projection engine and REST API endpoints.
 """
+
 import asyncio
 from fastapi.testclient import TestClient
-from app.services.geo_service import GeoService, CITY_ZONES, _infer_category, _jitter_coords, _health_from_anomalies
+from app.services.geo_service import (
+    GeoService,
+    CITY_ZONES,
+    _infer_category,
+    _jitter_coords,
+    _health_from_anomalies,
+)
 
 
 # ==============================================================================
 # Unit Tests — GeoService Core Logic
 # ==============================================================================
+
 
 class TestGeoProjection:
     """Verify anomaly geo-projection, deterministic jitter, and health scoring."""
@@ -58,9 +66,7 @@ class TestGeoProjection:
 
     def test_health_score_critical(self):
         """Assert multiple critical anomalies drive down health score."""
-        anomalies = [
-            {"severity": "CRITICAL", "score": 0.95} for _ in range(5)
-        ]
+        anomalies = [{"severity": "CRITICAL", "score": 0.95} for _ in range(5)]
         score, risk = _health_from_anomalies(anomalies)
         assert score < 45.0
         assert risk in ["HIGH", "CRITICAL"]
@@ -98,7 +104,13 @@ class TestGeoProjection:
             assert "description" in p
             assert "district" in p
             assert p["severity"] in ["CRITICAL", "WARNING", "INFO"]
-            assert p["category"] in ["POWER", "TRAFFIC", "WATER", "INTERNET", "PUBLIC_INFRASTRUCTURE"]
+            assert p["category"] in [
+                "POWER",
+                "TRAFFIC",
+                "WATER",
+                "INTERNET",
+                "PUBLIC_INFRASTRUCTURE",
+            ]
             assert 0.0 <= p["score"] <= 1.0
 
     def test_anomaly_points_lat_lng_in_city_range(self):
@@ -159,12 +171,14 @@ class TestGeoProjection:
 # Integration Tests — REST API Endpoints
 # ==============================================================================
 
+
 class TestGeoAPI:
     """Verify geospatial REST API endpoints return valid schemas."""
 
     @classmethod
     def setup_class(cls):
         from app.main import app
+
         cls.client = TestClient(app)
 
     def test_get_geo_map_api(self):
@@ -231,7 +245,13 @@ class TestGeoAPI:
             assert "risk_level" in region
             assert "polygon" in region
             assert 5.0 <= region["health_score"] <= 100.0
-            assert region["risk_level"] in ["NOMINAL", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
+            assert region["risk_level"] in [
+                "NOMINAL",
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "CRITICAL",
+            ]
             assert len(region["polygon"]) >= 4
 
     def test_get_geo_heatmap_api(self):
@@ -265,5 +285,7 @@ class TestGeoAPI:
         """Assert critical_count matches actual critical anomaly count in list."""
         response = self.client.get("/api/v1/geo/map")
         data = response.json()
-        actual_critical = len([p for p in data["anomaly_points"] if p["severity"] == "CRITICAL"])
+        actual_critical = len(
+            [p for p in data["anomaly_points"] if p["severity"] == "CRITICAL"]
+        )
         assert data["critical_count"] == actual_critical

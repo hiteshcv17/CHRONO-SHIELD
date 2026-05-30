@@ -22,32 +22,34 @@ logger = logging.getLogger("ingestion.base")
 # Shared Enumerations
 # ==============================================================================
 
+
 class SourceCategory(str, Enum):
-    WEATHER       = "weather"
-    TRAFFIC       = "traffic"
-    ENERGY        = "energy"
-    SOCIAL_MEDIA  = "social_media"
+    WEATHER = "weather"
+    TRAFFIC = "traffic"
+    ENERGY = "energy"
+    SOCIAL_MEDIA = "social_media"
     INFRASTRUCTURE = "infrastructure"
-    CUSTOM        = "custom"
+    CUSTOM = "custom"
 
 
 class IngestionStatus(str, Enum):
-    SUCCESS   = "success"
-    PARTIAL   = "partial"       # Some records failed validation
-    SKIPPED   = "skipped"       # Source disabled or rate-limited
-    FAILED    = "failed"        # Unrecoverable error
+    SUCCESS = "success"
+    PARTIAL = "partial"  # Some records failed validation
+    SKIPPED = "skipped"  # Source disabled or rate-limited
+    FAILED = "failed"  # Unrecoverable error
 
 
 class HealthState(str, Enum):
-    REACHABLE   = "reachable"
+    REACHABLE = "reachable"
     UNREACHABLE = "unreachable"
-    DEGRADED    = "degraded"
-    UNKNOWN     = "unknown"
+    DEGRADED = "degraded"
+    UNKNOWN = "unknown"
 
 
 # ==============================================================================
 # Shared Dataclasses (typed contracts across the pipeline)
 # ==============================================================================
+
 
 @dataclass
 class IngestionResult:
@@ -55,14 +57,15 @@ class IngestionResult:
     Unified result returned by every data source's fetch() call.
     Downstream pipeline components consume this contract exclusively.
     """
-    source_name:   str
-    status:        IngestionStatus
-    fetched_at:    datetime          = field(default_factory=datetime.utcnow)
-    record_count:  int               = 0
-    records_count: int               = 0
-    records:       List[Dict[str, Any]] = field(default_factory=list)
-    error_message: Optional[str]     = None
-    metadata:      Dict[str, Any]    = field(default_factory=dict)
+
+    source_name: str
+    status: IngestionStatus
+    fetched_at: datetime = field(default_factory=datetime.utcnow)
+    record_count: int = 0
+    records_count: int = 0
+    records: List[Dict[str, Any]] = field(default_factory=list)
+    error_message: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.records_count and self.record_count:
@@ -86,14 +89,15 @@ class SourceMetadata:
     Static descriptors returned by get_metadata().
     Used by the registry and dashboard status views.
     """
-    name:              str
-    version:           str
-    category:          SourceCategory
-    description:       str
-    interval_seconds:  int               # Default polling cadence
-    supported_fields:  List[str]         = field(default_factory=list)
-    tags:              List[str]         = field(default_factory=list)
-    source_type:       str               = ""
+
+    name: str
+    version: str
+    category: SourceCategory
+    description: str
+    interval_seconds: int  # Default polling cadence
+    supported_fields: List[str] = field(default_factory=list)
+    tags: List[str] = field(default_factory=list)
+    source_type: str = ""
 
     def __post_init__(self):
         if not self.source_type:
@@ -105,16 +109,18 @@ class SourceHealthStatus:
     """
     Runtime health snapshot returned by health_check().
     """
-    source_name:  str
-    state:        HealthState
-    checked_at:   datetime       = field(default_factory=datetime.utcnow)
-    latency_ms:   Optional[float] = None
-    detail:       Optional[str]  = None
+
+    source_name: str
+    state: HealthState
+    checked_at: datetime = field(default_factory=datetime.utcnow)
+    latency_ms: Optional[float] = None
+    detail: Optional[str] = None
 
 
 # ==============================================================================
 # Abstract Base Class
 # ==============================================================================
+
 
 class BaseDataSource(abc.ABC):
     """

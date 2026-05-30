@@ -20,7 +20,7 @@ _MOCK_REGISTRY: List[Asset] = [
         installation_date=datetime.utcnow() - timedelta(days=730),
         last_maintenance=datetime.utcnow() - timedelta(days=45),
         created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        updated_at=datetime.utcnow(),
     ),
     Asset(
         id="ast-tz01",
@@ -32,7 +32,7 @@ _MOCK_REGISTRY: List[Asset] = [
         installation_date=datetime.utcnow() - timedelta(days=365),
         last_maintenance=datetime.utcnow() - timedelta(days=12),
         created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        updated_at=datetime.utcnow(),
     ),
     Asset(
         id="ast-wp01",
@@ -44,7 +44,7 @@ _MOCK_REGISTRY: List[Asset] = [
         installation_date=datetime.utcnow() - timedelta(days=1460),
         last_maintenance=datetime.utcnow() - timedelta(days=120),
         created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        updated_at=datetime.utcnow(),
     ),
     Asset(
         id="ast-ps01",
@@ -56,8 +56,8 @@ _MOCK_REGISTRY: List[Asset] = [
         installation_date=datetime.utcnow() - timedelta(days=180),
         last_maintenance=datetime.utcnow() - timedelta(days=5),
         created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+        updated_at=datetime.utcnow(),
+    ),
 ]
 
 
@@ -74,7 +74,7 @@ class AssetService:
         status: Optional[str] = None,
         region: Optional[str] = None,
         name: Optional[str] = None,
-        limit: int = 50
+        limit: int = 50,
     ) -> List[Asset]:
         """
         Query assets with optional filters.
@@ -89,14 +89,16 @@ class AssetService:
                 stmt = stmt.where(Asset.region.ilike(f"%{region}%"))
             if name:
                 stmt = stmt.where(Asset.name.ilike(f"%{name}%"))
-            
+
             stmt = stmt.order_by(Asset.name.asc()).limit(limit)
             res = await db.execute(stmt)
             records = list(res.scalars().all())
             if records:
                 return records
         except Exception as e:
-            logger.error(f"Failed to query database assets: {e}. Returning mock registry.")
+            logger.error(
+                f"Failed to query database assets: {e}. Returning mock registry."
+            )
 
         # Fallback to Mock Registry
         filtered = _MOCK_REGISTRY
@@ -141,7 +143,7 @@ class AssetService:
             status=payload.status,
             region=payload.region,
             installation_date=payload.installation_date or datetime.utcnow(),
-            last_maintenance=payload.last_maintenance or datetime.utcnow()
+            last_maintenance=payload.last_maintenance or datetime.utcnow(),
         )
         if payload.dynamic_metadata:
             new_asset.dynamic_metadata = payload.dynamic_metadata
@@ -151,17 +153,22 @@ class AssetService:
                 db.add(new_asset)
                 await db.commit()
                 await db.refresh(new_asset)
-                logger.info(f"Registered new asset '{new_asset.name}' with ID '{new_asset.id}' in DB.")
+                logger.info(
+                    f"Registered new asset '{new_asset.name}' with ID '{new_asset.id}' in DB."
+                )
                 return new_asset
             except Exception as e:
                 try:
                     await db.rollback()
                 except Exception:
                     pass
-                logger.error(f"Failed to create asset in DB: {e}. Registering in mock fallback.")
+                logger.error(
+                    f"Failed to create asset in DB: {e}. Registering in mock fallback."
+                )
 
         # Fallback: create mock uuid and insert to in-memory list
         import uuid
+
         new_asset.id = f"ast-{uuid.uuid4().hex[:8]}"
         new_asset.created_at = datetime.utcnow()
         new_asset.updated_at = datetime.utcnow()
@@ -169,7 +176,9 @@ class AssetService:
         return new_asset
 
     @staticmethod
-    async def update_asset(db: AsyncSession, asset_id: str, payload: AssetUpdate) -> Asset:
+    async def update_asset(
+        db: AsyncSession, asset_id: str, payload: AssetUpdate
+    ) -> Asset:
         """
         Update an existing asset.
         """
@@ -192,7 +201,7 @@ class AssetService:
             target_asset.installation_date = payload.installation_date
         if payload.last_maintenance is not None:
             target_asset.last_maintenance = payload.last_maintenance
-        
+
         target_asset.updated_at = datetime.utcnow()
 
         if db is not None:

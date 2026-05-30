@@ -23,7 +23,7 @@ class TestReport:
             username="mockanalyst2",
             email="analyst2@chronoshield.ai",
             role="ANALYST",
-            is_active=True
+            is_active=True,
         )
         app.dependency_overrides[get_current_user] = lambda: mock_user
         yield
@@ -37,14 +37,16 @@ class TestReport:
         """Verify report creation generates CSV & PDF files with summary stats."""
         now = datetime.utcnow()
         start = now - timedelta(days=1)
-        
+
         # Trigger generation using mock fallback path
-        report = await ReportService.generate_executive_report(None, "DAILY", start, now)
-        
+        report = await ReportService.generate_executive_report(
+            None, "DAILY", start, now
+        )
+
         assert report.id is not None
         assert report.status == "READY"
         assert report.report_type == "DAILY"
-        
+
         # Verify JSON summary populated
         summary = json_data = {}
         try:
@@ -55,20 +57,21 @@ class TestReport:
             summary = json_data = json_data = json_data = json_data = json_data = {}
             summary = json_data = json_data = json_data = json_data = json_data = {}
             import json
+
             summary = json.loads(report.summary)
         except Exception:
             pass
-        
+
         assert "total_anomalies" in summary
         assert "system_health_avg" in summary
-        
+
         # Verify files created in static directory
         csv_path = os.path.join(STATIC_REPORTS_DIR, f"{report.id}.csv")
         pdf_path = os.path.join(STATIC_REPORTS_DIR, f"{report.id}.pdf")
-        
+
         assert os.path.exists(csv_path)
         assert os.path.exists(pdf_path)
-        
+
         # Clean up files
         try:
             os.remove(csv_path)
@@ -91,25 +94,27 @@ class TestReport:
         payload = {
             "report_type": "DAILY",
             "start_date": datetime.utcnow().isoformat(),
-            "end_date": (datetime.utcnow() - timedelta(hours=5)).isoformat()
+            "end_date": (datetime.utcnow() - timedelta(hours=5)).isoformat(),
         }
         response = client.post("/api/v1/reports/generate", json=payload)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "Start date must be strictly before end date" in response.json()["detail"]
+        assert (
+            "Start date must be strictly before end date" in response.json()["detail"]
+        )
 
     def test_generate_report_api_success(self):
         """Verify reports can be generated successfully via REST calls."""
         payload = {
             "report_type": "DAILY",
             "start_date": (datetime.utcnow() - timedelta(days=1)).isoformat(),
-            "end_date": datetime.utcnow().isoformat()
+            "end_date": datetime.utcnow().isoformat(),
         }
         response = client.post("/api/v1/reports/generate", json=payload)
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
         assert data["status"] == "READY"
         assert data["report_type"] == "DAILY"
-        
+
         # Clean up generated files
         rep_id = data["id"]
         csv_path = os.path.join(STATIC_REPORTS_DIR, f"{rep_id}.csv")

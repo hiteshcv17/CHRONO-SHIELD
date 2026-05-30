@@ -2,6 +2,7 @@
 Phase 29/30 — Benchmark Tests (updated for refactored architecture)
 Uses app.core.metrics, app.core.pipeline, and BenchmarkService via PipelineRegistry.
 """
+
 import pytest
 import math
 import asyncio
@@ -114,11 +115,22 @@ class TestBenchmarkService:
             metric_types=["power"], horizon_steps=12, n_samples=80, include_ets=False
         )
         required = [
-            "run_id", "timestamp", "models_evaluated", "datasets_evaluated",
-            "results", "aggregate", "comparisons", "ranking_by_mae",
-            "ranking_by_rmse", "ranking_by_mape", "ranking_by_speed",
-            "overall_winner", "overall_winner_reason",
-            "report_summary", "recommendations", "total_benchmark_time_ms",
+            "run_id",
+            "timestamp",
+            "models_evaluated",
+            "datasets_evaluated",
+            "results",
+            "aggregate",
+            "comparisons",
+            "ranking_by_mae",
+            "ranking_by_rmse",
+            "ranking_by_mape",
+            "ranking_by_speed",
+            "overall_winner",
+            "overall_winner_reason",
+            "report_summary",
+            "recommendations",
+            "total_benchmark_time_ms",
         ]
         for field in required:
             assert field in result, f"Missing field: {field}"
@@ -137,7 +149,10 @@ class TestBenchmarkService:
 
     def test_results_count_correct(self):
         result = BenchmarkService.run_benchmark(
-            metric_types=["power", "traffic"], horizon_steps=8, n_samples=80, include_ets=False
+            metric_types=["power", "traffic"],
+            horizon_steps=8,
+            n_samples=80,
+            include_ets=False,
         )
         assert len(result["results"]) == 4  # 2 datasets × 2 models
 
@@ -175,7 +190,12 @@ class TestBenchmarkService:
         result = BenchmarkService.run_benchmark(
             metric_types=["power"], horizon_steps=8, n_samples=80, include_ets=False
         )
-        for rank in ("ranking_by_mae", "ranking_by_rmse", "ranking_by_mape", "ranking_by_speed"):
+        for rank in (
+            "ranking_by_mae",
+            "ranking_by_rmse",
+            "ranking_by_mape",
+            "ranking_by_speed",
+        ):
             assert set(result[rank]) == set(result["models_evaluated"])
 
     def test_overall_winner_valid(self):
@@ -223,7 +243,9 @@ class TestBenchmarkService:
     def test_four_datasets_run(self):
         result = BenchmarkService.run_benchmark(
             metric_types=["power", "traffic", "water", "internet"],
-            horizon_steps=8, n_samples=80, include_ets=False
+            horizon_steps=8,
+            n_samples=80,
+            include_ets=False,
         )
         assert len(result["results"]) == 8
 
@@ -244,39 +266,61 @@ class TestBenchmarkAPI:
 
     def test_quick_endpoint_ok(self):
         async def _a():
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-                resp = await client.get("/api/v1/benchmark/quick?metric_type=power&n_samples=80&horizon=8")
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                resp = await client.get(
+                    "/api/v1/benchmark/quick?metric_type=power&n_samples=80&horizon=8"
+                )
                 assert resp.status_code == 200
                 data = resp.json()
                 assert "overall_winner" in data
                 assert "aggregate" in data
+
         _run(_a())
 
     def test_preview_endpoint_ok(self):
         async def _a():
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-                resp = await client.get("/api/v1/benchmark/preview/traffic?n_samples=80")
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                resp = await client.get(
+                    "/api/v1/benchmark/preview/traffic?n_samples=80"
+                )
                 assert resp.status_code == 200
                 data = resp.json()
                 assert "values" in data
                 assert len(data["values"]) == 80
+
         _run(_a())
 
     def test_run_endpoint_two_datasets(self):
         async def _a():
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-                payload = {"metric_types": ["power", "water"], "horizon_steps": 8,
-                           "n_samples": 80, "include_ets": False}
-                resp = await client.post("/api/v1/benchmark/run", json=payload, timeout=120.0)
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                payload = {
+                    "metric_types": ["power", "water"],
+                    "horizon_steps": 8,
+                    "n_samples": 80,
+                    "include_ets": False,
+                }
+                resp = await client.post(
+                    "/api/v1/benchmark/run", json=payload, timeout=120.0
+                )
                 assert resp.status_code == 200
                 data = resp.json()
                 assert len(data["results"]) == 4
+
         _run(_a())
 
     def test_openapi_has_benchmark_paths(self):
         async def _a():
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/openapi.json")
                 spec = resp.json()
                 assert "/api/v1/benchmark/quick" in spec["paths"]
+
         _run(_a())

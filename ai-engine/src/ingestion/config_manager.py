@@ -16,6 +16,7 @@ from typing import Dict, List, Optional
 
 try:
     import yaml
+
     _YAML_AVAILABLE = True
 except ImportError:
     _YAML_AVAILABLE = False
@@ -31,21 +32,23 @@ _DEFAULT_CONFIG_PATH = Path(__file__).parents[2] / "configs" / "sources.yaml"
 # SourceConfig Dataclass
 # ==============================================================================
 
+
 @dataclass
 class SourceConfig:
     """
     Complete configuration for a single data source.
     Populated by ConfigManager from YAML or environment variables.
     """
-    name:              str
-    enabled:           bool            = True
-    endpoint:          str             = ""
-    api_key:           str             = ""          # Loaded from env var at runtime
-    interval_seconds:  int             = 300         # Default: every 5 minutes
-    timeout_seconds:   int             = 10
-    max_retries:       int             = 3
-    retry_backoff:     float           = 1.5         # Exponential back-off multiplier
-    extra:             Dict            = field(default_factory=dict)
+
+    name: str
+    enabled: bool = True
+    endpoint: str = ""
+    api_key: str = ""  # Loaded from env var at runtime
+    interval_seconds: int = 300  # Default: every 5 minutes
+    timeout_seconds: int = 10
+    max_retries: int = 3
+    retry_backoff: float = 1.5  # Exponential back-off multiplier
+    extra: Dict = field(default_factory=dict)
 
     def mask_secrets(self) -> Dict:
         """Return a safe-to-log representation without exposing the API key."""
@@ -65,6 +68,7 @@ class SourceConfig:
 # ==============================================================================
 # ConfigManager
 # ==============================================================================
+
 
 class ConfigManager:
     """
@@ -98,9 +102,13 @@ class ConfigManager:
             logger.info(f"Loaded source configs from: {self._path}")
         else:
             if not _YAML_AVAILABLE:
-                logger.warning("PyYAML not installed — using default SourceConfig values only.")
+                logger.warning(
+                    "PyYAML not installed — using default SourceConfig values only."
+                )
             else:
-                logger.warning(f"Config file not found at {self._path} — using defaults.")
+                logger.warning(
+                    f"Config file not found at {self._path} — using defaults."
+                )
 
         sources_raw: List[Dict] = raw.get("sources", [])
         self._configs = {}
@@ -155,7 +163,7 @@ class ConfigManager:
         return [c for c in self.list_all() if c.enabled]
 
     def summary(self) -> str:
-        total   = len(self._configs)
+        total = len(self._configs)
         enabled = len(self.list_enabled())
         return f"ConfigManager: {total} sources registered, {enabled} enabled."
 

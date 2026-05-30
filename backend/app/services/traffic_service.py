@@ -6,16 +6,41 @@ from typing import List, Dict, Any, Optional
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.schemas.traffic import TrafficRecord, CurrentTrafficResponse, TrafficTrendsResponse
+from app.schemas.traffic import (
+    TrafficRecord,
+    CurrentTrafficResponse,
+    TrafficTrendsResponse,
+)
 from app.models.traffic import TrafficRecordModel
 
 logger = logging.getLogger("traffic_service")
 
 # Monitored road corridors
 CORRIDOR_METADATA = {
-    "nyc-i95": {"id": "NYC-I95", "name": "New York I-95", "bbox": "-74.05,40.70,-73.97,40.78", "speed_base": 90.0, "time_base": 360, "incident_rate": 0.1},
-    "la-i405": {"id": "LA-I405", "name": "Los Angeles I-405", "bbox": "-118.50,33.96,-118.38,34.08", "speed_base": 100.0, "time_base": 420, "incident_rate": 0.25},
-    "lon-m25": {"id": "LON-M25", "name": "London M25", "bbox": "-0.57,51.40,0.12,51.72", "speed_base": 110.0, "time_base": 600, "incident_rate": 0.15},
+    "nyc-i95": {
+        "id": "NYC-I95",
+        "name": "New York I-95",
+        "bbox": "-74.05,40.70,-73.97,40.78",
+        "speed_base": 90.0,
+        "time_base": 360,
+        "incident_rate": 0.1,
+    },
+    "la-i405": {
+        "id": "LA-I405",
+        "name": "Los Angeles I-405",
+        "bbox": "-118.50,33.96,-118.38,34.08",
+        "speed_base": 100.0,
+        "time_base": 420,
+        "incident_rate": 0.25,
+    },
+    "lon-m25": {
+        "id": "LON-M25",
+        "name": "London M25",
+        "bbox": "-0.57,51.40,0.12,51.72",
+        "speed_base": 110.0,
+        "time_base": 600,
+        "incident_rate": 0.15,
+    },
 }
 
 
@@ -37,9 +62,7 @@ class TrafficService:
                 records = [TrafficRecord(**r) for r in raw_records]
                 logger.info("Retrieved current traffic telemetry from Redis.")
                 return CurrentTrafficResponse(
-                    success=True,
-                    fetched_at=datetime.utcnow(),
-                    records=records
+                    success=True, fetched_at=datetime.utcnow(), records=records
                 )
         except Exception as e:
             logger.error(f"Failed to query traffic from Redis: {e}")
@@ -49,7 +72,9 @@ class TrafficService:
         records = []
         now = datetime.utcnow()
         for slug, meta in CORRIDOR_METADATA.items():
-            flow_speed, jam_factor, level, travel_time, incidents = simulate_traffic_state(now.hour, meta)
+            flow_speed, jam_factor, level, travel_time, incidents = (
+                simulate_traffic_state(now.hour, meta)
+            )
             records.append(
                 TrafficRecord(
                     timestamp=now,
@@ -61,18 +86,16 @@ class TrafficService:
                     congestion_level=level,
                     incident_count=incidents,
                     travel_time_seconds=int(travel_time),
-                    confidence_score=0.95
+                    confidence_score=0.95,
                 )
             )
 
-        return CurrentTrafficResponse(
-            success=False,
-            fetched_at=now,
-            records=records
-        )
+        return CurrentTrafficResponse(success=False, fetched_at=now, records=records)
 
     @staticmethod
-    async def get_traffic_trends(db: AsyncSession, corridor: str) -> TrafficTrendsResponse:
+    async def get_traffic_trends(
+        db: AsyncSession, corridor: str
+    ) -> TrafficTrendsResponse:
         """
         Query historical road traffic trends directly from PostgreSQL,
         enforcing sub-second chronological composite queries and falling back to stubs.
@@ -118,21 +141,29 @@ class TrafficService:
                         congestion_level=r.congestion_level,
                         incident_count=r.incident_count,
                         travel_time_seconds=r.travel_time_seconds,
-                        confidence_score=0.95
+                        confidence_score=0.95,
                     )
                     for r in chronological_records
                 ]
-                logger.info(f"Retrieved {len(records)} traffic trend records from PostgreSQL.")
+                logger.info(
+                    f"Retrieved {len(records)} traffic trend records from PostgreSQL."
+                )
                 return TrafficTrendsResponse(corridor=corridor_id, records=records)
         except Exception as e:
-            logger.error(f"Failed to query traffic history for {corridor_id} from PostgreSQL: {e}")
+            logger.error(
+                f"Failed to query traffic history for {corridor_id} from PostgreSQL: {e}"
+            )
 
         # Simulated historical sequence (24 points at 10-minute offsets)
-        logger.warning(f"No PostgreSQL historical trends for {corridor_id} — generating simulated sequences.")
+        logger.warning(
+            f"No PostgreSQL historical trends for {corridor_id} — generating simulated sequences."
+        )
         now = datetime.utcnow()
         for i in range(24):
             time_offset = now - timedelta(minutes=(24 - i) * 10)
-            flow_speed, jam_factor, level, travel_time, incidents = simulate_traffic_state(time_offset.hour, meta)
+            flow_speed, jam_factor, level, travel_time, incidents = (
+                simulate_traffic_state(time_offset.hour, meta)
+            )
             records.append(
                 TrafficRecord(
                     timestamp=time_offset,
@@ -144,7 +175,7 @@ class TrafficService:
                     congestion_level=level,
                     incident_count=incidents,
                     travel_time_seconds=int(travel_time),
-                    confidence_score=0.95
+                    confidence_score=0.95,
                 )
             )
 
@@ -157,14 +188,14 @@ def simulate_traffic_state(hour: float, meta: Dict[str, Any]) -> tuple:
     Simulates morning peak (8:00 AM) and evening peak (5:30 PM = 17.5) road delays.
     """
     # Overlapping Gaussian equations
-    morning_peak = math.exp(-((hour - 8.0) / 1.5) ** 2)
-    evening_peak = math.exp(-((hour - 17.5) / 1.5) ** 2)
+    morning_peak = math.exp(-(((hour - 8.0) / 1.5) ** 2))
+    evening_peak = math.exp(-(((hour - 17.5) / 1.5) ** 2))
     rush_factor = max(morning_peak, evening_peak)
 
     # Speeds drop, jam factors rise, travel time multiplies during rush hours
     flow_speed = meta["speed_base"] * (1.0 - (0.55 * rush_factor))
     jam_factor = rush_factor * 8.5 + (1.0 - rush_factor) * 0.8
-    
+
     # Random variance
     flow_speed = max(20.0, flow_speed - (5.0 * rush_factor))
     jam_factor = min(10.0, max(0.0, jam_factor + (0.5 * rush_factor)))
@@ -180,10 +211,10 @@ def simulate_traffic_state(hour: float, meta: Dict[str, Any]) -> tuple:
         level = "SAFE"
 
     travel_time = meta["time_base"] * (1.0 + (1.8 * rush_factor))
-    
+
     # Stochastic incident calculations
     incidents = 0
     if rush_factor > 0.4:
         incidents = 1 if rush_factor < 0.75 else 2
-    
+
     return flow_speed, jam_factor, level, travel_time, incidents

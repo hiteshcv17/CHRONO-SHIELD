@@ -4,7 +4,13 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token, decode_token
+from app.core.security import (
+    get_password_hash,
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+)
 from app.core.auth import get_current_user, require_admin
 from app.db.session import get_db_session, get_redis_client
 from app.models.user import User
@@ -67,6 +73,7 @@ class TestAuthAPIEndpoints:
         """Test successful registration endpoint."""
         # Mock database execute returning None (username and email are free)
         from datetime import datetime
+
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         self.mock_db.execute.return_value = mock_result
@@ -74,11 +81,16 @@ class TestAuthAPIEndpoints:
         async def mock_refresh(user):
             user.id = "usr-mockuser1"
             user.created_at = datetime.utcnow()
+
         self.mock_db.refresh.side_effect = mock_refresh
 
         response = client.post(
             "/api/v1/auth/register",
-            json={"username": "newuser", "password": "securepassword", "email": "new@chronoshield.ai"}
+            json={
+                "username": "newuser",
+                "password": "securepassword",
+                "email": "new@chronoshield.ai",
+            },
         )
 
         assert response.status_code == status.HTTP_201_CREATED
@@ -91,14 +103,20 @@ class TestAuthAPIEndpoints:
     def test_register_username_taken(self):
         """Test registration when username already exists."""
         # Mock database execute returning an existing user
-        existing_user = User(username="newuser", hashed_password="hashed", role="VIEWER")
+        existing_user = User(
+            username="newuser", hashed_password="hashed", role="VIEWER"
+        )
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = existing_user
         self.mock_db.execute.return_value = mock_result
 
         response = client.post(
             "/api/v1/auth/register",
-            json={"username": "newuser", "password": "securepassword", "email": "new@chronoshield.ai"}
+            json={
+                "username": "newuser",
+                "password": "securepassword",
+                "email": "new@chronoshield.ai",
+            },
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -108,14 +126,18 @@ class TestAuthAPIEndpoints:
         """Test successful login returns access token and sets cookie."""
         # Mock user retrieval
         hashed_pwd = get_password_hash("mypw123")
-        user = User(username="loginuser", hashed_password=hashed_pwd, role="VIEWER", is_active=True)
+        user = User(
+            username="loginuser",
+            hashed_password=hashed_pwd,
+            role="VIEWER",
+            is_active=True,
+        )
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = user
         self.mock_db.execute.return_value = mock_result
 
         response = client.post(
-            "/api/v1/auth/login",
-            json={"username": "loginuser", "password": "mypw123"}
+            "/api/v1/auth/login", json={"username": "loginuser", "password": "mypw123"}
         )
 
         assert response.status_code == status.HTTP_200_OK
@@ -128,14 +150,19 @@ class TestAuthAPIEndpoints:
         """Test login with wrong password."""
         # Mock user retrieval
         hashed_pwd = get_password_hash("mypw123")
-        user = User(username="loginuser", hashed_password=hashed_pwd, role="VIEWER", is_active=True)
+        user = User(
+            username="loginuser",
+            hashed_password=hashed_pwd,
+            role="VIEWER",
+            is_active=True,
+        )
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = user
         self.mock_db.execute.return_value = mock_result
 
         response = client.post(
             "/api/v1/auth/login",
-            json={"username": "loginuser", "password": "wrongpassword"}
+            json={"username": "loginuser", "password": "wrongpassword"},
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -146,13 +173,15 @@ class TestAuthAPIEndpoints:
         # Generate token
         refresh_token = create_refresh_token("someuser")
         response = client.post(
-            "/api/v1/auth/logout",
-            cookies={"refresh_token": refresh_token}
+            "/api/v1/auth/logout", cookies={"refresh_token": refresh_token}
         )
 
         assert response.status_code == status.HTTP_200_OK
         # The cookie should be deleted (value set to empty or past expiry)
-        assert response.cookies.get("refresh_token") is None or response.cookies.get("refresh_token") == ""
+        assert (
+            response.cookies.get("refresh_token") is None
+            or response.cookies.get("refresh_token") == ""
+        )
         # Redis delete should have been called
         self.mock_redis.delete.assert_called_once()
 
@@ -160,21 +189,21 @@ class TestAuthAPIEndpoints:
         """Test protected /me endpoint with correct access token."""
         # Mock get_current_user to return mock user
         from datetime import datetime
+
         mock_user = User(
             id="usr-mockid12",
             username="curruser",
             email="curr@chronoshield.ai",
             role="VIEWER",
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
-        
+
         # Override dependency get_current_user
         app.dependency_overrides[get_current_user] = lambda: mock_user
 
         response = client.get(
-            "/api/v1/auth/me",
-            headers={"Authorization": "Bearer fake-token"}
+            "/api/v1/auth/me", headers={"Authorization": "Bearer fake-token"}
         )
 
         assert response.status_code == status.HTTP_200_OK

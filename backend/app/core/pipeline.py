@@ -14,6 +14,7 @@ Each pipeline exposes a uniform interface:
 This decouples model selection from benchmark orchestration and makes it
 trivial to add new models by subclassing ForecastingPipeline.
 """
+
 import time
 import warnings
 from abc import ABC, abstractmethod
@@ -74,7 +75,9 @@ class ForecastingPipeline(ABC):
         t0 = time.perf_counter()
         try:
             if not self._converged or self._train is None:
-                fallback_val = float(np.mean(self._train)) if self._train is not None else 0.0
+                fallback_val = (
+                    float(np.mean(self._train)) if self._train is not None else 0.0
+                )
                 result = np.full(horizon, fallback_val)
             else:
                 with warnings.catch_warnings():
@@ -83,7 +86,9 @@ class ForecastingPipeline(ABC):
             result = np.clip(result, 0.0, None)
         except Exception as exc:
             self._error_message = (self._error_message or "") + f" | predict: {exc}"
-            fallback_val = float(np.mean(self._train)) if self._train is not None else 0.0
+            fallback_val = (
+                float(np.mean(self._train)) if self._train is not None else 0.0
+            )
             result = np.full(horizon, fallback_val)
         self._inference_time_ms = (time.perf_counter() - t0) * 1000
         return result[:horizon]
@@ -144,8 +149,7 @@ class ProphetPipeline(ForecastingPipeline):
 
         base_dt = datetime(2026, 1, 1)
         future_dates = [
-            base_dt + timedelta(hours=i + self._train_len)
-            for i in range(horizon)
+            base_dt + timedelta(hours=i + self._train_len) for i in range(horizon)
         ]
         future_df = pd.DataFrame({"ds": future_dates})
         forecast = self._model.predict(future_df)

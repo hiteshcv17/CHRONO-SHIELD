@@ -66,7 +66,9 @@ async def _persist_weather_result(result: IngestionResult) -> None:
     # 1. Sync to Redis Cache
     redis_url = _get_redis_url()
     try:
-        async with from_url(redis_url, encoding="utf-8", decode_responses=True) as redis:
+        async with from_url(
+            redis_url, encoding="utf-8", decode_responses=True
+        ) as redis:
             current_payload = json.dumps(result.records)
             await redis.set("weather:current", current_payload)
             logger.info(
@@ -86,7 +88,9 @@ async def _persist_weather_result(result: IngestionResult) -> None:
                 await redis.lpush(history_key, record_payload)
                 await redis.ltrim(history_key, 0, 49)
 
-            logger.info(f"[Persistence] Successfully pushed weather trends to Redis for {len(result.records)} cities.")
+            logger.info(
+                f"[Persistence] Successfully pushed weather trends to Redis for {len(result.records)} cities."
+            )
 
             # Trigger baseline statistical anomaly detection
             for record in result.records:
@@ -96,7 +100,9 @@ async def _persist_weather_result(result: IngestionResult) -> None:
                 city_slug = city.lower().strip()
                 await _detect_and_persist_weather_anomalies(redis, city_slug, city)
     except Exception as e:
-        logger.error(f"[Persistence] Redis execution error during weather telemetry cache: {e}")
+        logger.error(
+            f"[Persistence] Redis execution error during weather telemetry cache: {e}"
+        )
 
     # 2. Sync to PostgreSQL Database (Time-Series)
     await _persist_weather_to_db(result.records)
@@ -116,7 +122,9 @@ async def _persist_traffic_result(result: IngestionResult) -> None:
     # 1. Sync to Redis Cache
     redis_url = _get_redis_url()
     try:
-        async with from_url(redis_url, encoding="utf-8", decode_responses=True) as redis:
+        async with from_url(
+            redis_url, encoding="utf-8", decode_responses=True
+        ) as redis:
             current_payload = json.dumps(result.records)
             await redis.set("traffic:current", current_payload)
             logger.info(
@@ -136,7 +144,9 @@ async def _persist_traffic_result(result: IngestionResult) -> None:
                 await redis.lpush(history_key, record_payload)
                 await redis.ltrim(history_key, 0, 49)
 
-            logger.info(f"[Persistence] Successfully pushed traffic trends to Redis for {len(result.records)} corridors.")
+            logger.info(
+                f"[Persistence] Successfully pushed traffic trends to Redis for {len(result.records)} corridors."
+            )
 
             # Trigger baseline statistical anomaly detection
             for record in result.records:
@@ -144,9 +154,13 @@ async def _persist_traffic_result(result: IngestionResult) -> None:
                 if not corridor:
                     continue
                 corridor_slug = corridor.lower().strip()
-                await _detect_and_persist_traffic_anomalies(redis, corridor_slug, corridor)
+                await _detect_and_persist_traffic_anomalies(
+                    redis, corridor_slug, corridor
+                )
     except Exception as e:
-        logger.error(f"[Persistence] Redis execution error during traffic telemetry cache: {e}")
+        logger.error(
+            f"[Persistence] Redis execution error during traffic telemetry cache: {e}"
+        )
 
     # 2. Sync to PostgreSQL Database (Time-Series)
     await _persist_traffic_to_db(result.records)
@@ -156,21 +170,26 @@ async def _persist_traffic_result(result: IngestionResult) -> None:
 # PostgreSQL Database Persistence Sync Helpers (Resilient Drivers)
 # ==============================================================================
 
+
 async def _persist_weather_to_db(records: List[Dict[str, Any]]) -> None:
     """Synchronize weather observations to PostgreSQL weather_records table."""
     try:
         import asyncpg
     except ImportError:
-        logger.warning("[Persistence] asyncpg not installed — skipping PostgreSQL weather sync.")
+        logger.warning(
+            "[Persistence] asyncpg not installed — skipping PostgreSQL weather sync."
+        )
         return
 
     if not ai_settings.DATABASE_URL:
-        logger.warning("[Persistence] DATABASE_URL not configured — skipping PostgreSQL weather sync.")
+        logger.warning(
+            "[Persistence] DATABASE_URL not configured — skipping PostgreSQL weather sync."
+        )
         return
 
     # Clean connection URL for asyncpg compatibility
     pg_url = ai_settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    
+
     try:
         conn = await asyncpg.connect(pg_url)
         try:
@@ -185,15 +204,25 @@ async def _persist_weather_to_db(records: List[Dict[str, Any]]) -> None:
                         precipitation_mm, cloud_coverage_pct
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     """,
-                    ts, r["location"], r["latitude"], r["longitude"],
-                    r["temperature_c"], r["humidity_pct"], r["wind_speed_ms"],
-                    r["precipitation_mm"], r["cloud_coverage_pct"]
+                    ts,
+                    r["location"],
+                    r["latitude"],
+                    r["longitude"],
+                    r["temperature_c"],
+                    r["humidity_pct"],
+                    r["wind_speed_ms"],
+                    r["precipitation_mm"],
+                    r["cloud_coverage_pct"],
                 )
-            logger.info(f"[Persistence] Successfully persisted {len(records)} weather records to PostgreSQL.")
+            logger.info(
+                f"[Persistence] Successfully persisted {len(records)} weather records to PostgreSQL."
+            )
         finally:
             await conn.close()
     except Exception as e:
-        logger.error(f"[Persistence] PostgreSQL execution error during weather sync: {e}")
+        logger.error(
+            f"[Persistence] PostgreSQL execution error during weather sync: {e}"
+        )
 
 
 async def _persist_traffic_to_db(records: List[Dict[str, Any]]) -> None:
@@ -201,15 +230,19 @@ async def _persist_traffic_to_db(records: List[Dict[str, Any]]) -> None:
     try:
         import asyncpg
     except ImportError:
-        logger.warning("[Persistence] asyncpg not installed — skipping PostgreSQL traffic sync.")
+        logger.warning(
+            "[Persistence] asyncpg not installed — skipping PostgreSQL traffic sync."
+        )
         return
 
     if not ai_settings.DATABASE_URL:
-        logger.warning("[Persistence] DATABASE_URL not configured — skipping PostgreSQL traffic sync.")
+        logger.warning(
+            "[Persistence] DATABASE_URL not configured — skipping PostgreSQL traffic sync."
+        )
         return
 
     pg_url = ai_settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    
+
     try:
         conn = await asyncpg.connect(pg_url)
         try:
@@ -223,27 +256,42 @@ async def _persist_traffic_to_db(records: List[Dict[str, Any]]) -> None:
                         incident_count, travel_time_seconds
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                     """,
-                    ts, r["corridor_id"], r["bbox"], r["flow_speed_kmh"],
-                    r["free_flow_speed_kmh"], r["jam_factor"], r["congestion_level"],
-                    r["incident_count"], r["travel_time_seconds"]
+                    ts,
+                    r["corridor_id"],
+                    r["bbox"],
+                    r["flow_speed_kmh"],
+                    r["free_flow_speed_kmh"],
+                    r["jam_factor"],
+                    r["congestion_level"],
+                    r["incident_count"],
+                    r["travel_time_seconds"],
                 )
-            logger.info(f"[Persistence] Successfully persisted {len(records)} traffic records to PostgreSQL.")
+            logger.info(
+                f"[Persistence] Successfully persisted {len(records)} traffic records to PostgreSQL."
+            )
         finally:
             await conn.close()
     except Exception as e:
-        logger.error(f"[Persistence] PostgreSQL execution error during traffic sync: {e}")
+        logger.error(
+            f"[Persistence] PostgreSQL execution error during traffic sync: {e}"
+        )
 
 
 # ==============================================================================
 # Statistical Anomaly Detection Run & Persist Helpers
 # ==============================================================================
 
-async def _detect_and_persist_weather_anomalies(redis: Redis, city_slug: str, city_name: str) -> None:
+
+async def _detect_and_persist_weather_anomalies(
+    redis: Redis, city_slug: str, city_name: str
+) -> None:
     """Runs statistical anomaly detection on the sliding window history from Redis."""
     try:
         import pandas as pd
     except ImportError:
-        logger.warning("[Persistence] pandas not installed — skipping weather anomaly detection.")
+        logger.warning(
+            "[Persistence] pandas not installed — skipping weather anomaly detection."
+        )
         return
 
     history_key = f"weather:history:{city_slug}"
@@ -261,17 +309,38 @@ async def _detect_and_persist_weather_anomalies(redis: Redis, city_slug: str, ci
         anomalies = []
         # Monitor temperature, humidity, and wind speed
         if "temperature_c" in df.columns:
-            anomalies.extend(StatisticalAnomalyDetector.detect_anomalies(
-                df, "temperature_c", "timestamp", window=10, z_threshold=2.5, metric_label=f"Weather: {city_name} Temperature"
-            ))
+            anomalies.extend(
+                StatisticalAnomalyDetector.detect_anomalies(
+                    df,
+                    "temperature_c",
+                    "timestamp",
+                    window=10,
+                    z_threshold=2.5,
+                    metric_label=f"Weather: {city_name} Temperature",
+                )
+            )
         if "humidity_pct" in df.columns:
-            anomalies.extend(StatisticalAnomalyDetector.detect_anomalies(
-                df, "humidity_pct", "timestamp", window=10, z_threshold=2.5, metric_label=f"Weather: {city_name} Humidity"
-            ))
+            anomalies.extend(
+                StatisticalAnomalyDetector.detect_anomalies(
+                    df,
+                    "humidity_pct",
+                    "timestamp",
+                    window=10,
+                    z_threshold=2.5,
+                    metric_label=f"Weather: {city_name} Humidity",
+                )
+            )
         if "wind_speed_ms" in df.columns:
-            anomalies.extend(StatisticalAnomalyDetector.detect_anomalies(
-                df, "wind_speed_ms", "timestamp", window=10, z_threshold=2.5, metric_label=f"Weather: {city_name} Wind Speed"
-            ))
+            anomalies.extend(
+                StatisticalAnomalyDetector.detect_anomalies(
+                    df,
+                    "wind_speed_ms",
+                    "timestamp",
+                    window=10,
+                    z_threshold=2.5,
+                    metric_label=f"Weather: {city_name} Wind Speed",
+                )
+            )
 
         if not anomalies:
             return
@@ -281,7 +350,9 @@ async def _detect_and_persist_weather_anomalies(redis: Redis, city_slug: str, ci
         if not latest_ts_str:
             return
 
-        latest_ts = datetime.fromisoformat(latest_ts_str.replace("Z", "+00:00")).replace(tzinfo=None)
+        latest_ts = datetime.fromisoformat(
+            latest_ts_str.replace("Z", "+00:00")
+        ).replace(tzinfo=None)
 
         latest_anomalies = []
         for anom in anomalies:
@@ -293,15 +364,21 @@ async def _detect_and_persist_weather_anomalies(redis: Redis, city_slug: str, ci
             await _persist_anomalies_to_db(latest_anomalies)
 
     except Exception as e:
-        logger.error(f"[Persistence] Error detecting weather anomalies: {e}", exc_info=True)
+        logger.error(
+            f"[Persistence] Error detecting weather anomalies: {e}", exc_info=True
+        )
 
 
-async def _detect_and_persist_traffic_anomalies(redis: Redis, corridor_slug: str, corridor_id: str) -> None:
+async def _detect_and_persist_traffic_anomalies(
+    redis: Redis, corridor_slug: str, corridor_id: str
+) -> None:
     """Runs statistical anomaly detection on the traffic history from Redis."""
     try:
         import pandas as pd
     except ImportError:
-        logger.warning("[Persistence] pandas not installed — skipping traffic anomaly detection.")
+        logger.warning(
+            "[Persistence] pandas not installed — skipping traffic anomaly detection."
+        )
         return
 
     history_key = f"traffic:history:{corridor_slug}"
@@ -319,17 +396,38 @@ async def _detect_and_persist_traffic_anomalies(redis: Redis, corridor_slug: str
         anomalies = []
         # Monitor flow speed, travel time, and jam factor
         if "flow_speed_kmh" in df.columns:
-            anomalies.extend(StatisticalAnomalyDetector.detect_anomalies(
-                df, "flow_speed_kmh", "timestamp", window=10, z_threshold=2.5, metric_label=f"Traffic: {corridor_id} Flow Speed"
-            ))
+            anomalies.extend(
+                StatisticalAnomalyDetector.detect_anomalies(
+                    df,
+                    "flow_speed_kmh",
+                    "timestamp",
+                    window=10,
+                    z_threshold=2.5,
+                    metric_label=f"Traffic: {corridor_id} Flow Speed",
+                )
+            )
         if "travel_time_seconds" in df.columns:
-            anomalies.extend(StatisticalAnomalyDetector.detect_anomalies(
-                df, "travel_time_seconds", "timestamp", window=10, z_threshold=2.5, metric_label=f"Traffic: {corridor_id} Travel Time"
-            ))
+            anomalies.extend(
+                StatisticalAnomalyDetector.detect_anomalies(
+                    df,
+                    "travel_time_seconds",
+                    "timestamp",
+                    window=10,
+                    z_threshold=2.5,
+                    metric_label=f"Traffic: {corridor_id} Travel Time",
+                )
+            )
         if "jam_factor" in df.columns:
-            anomalies.extend(StatisticalAnomalyDetector.detect_anomalies(
-                df, "jam_factor", "timestamp", window=10, z_threshold=2.5, metric_label=f"Traffic: {corridor_id} Jam Factor"
-            ))
+            anomalies.extend(
+                StatisticalAnomalyDetector.detect_anomalies(
+                    df,
+                    "jam_factor",
+                    "timestamp",
+                    window=10,
+                    z_threshold=2.5,
+                    metric_label=f"Traffic: {corridor_id} Jam Factor",
+                )
+            )
 
         if not anomalies:
             return
@@ -339,7 +437,9 @@ async def _detect_and_persist_traffic_anomalies(redis: Redis, corridor_slug: str
         if not latest_ts_str:
             return
 
-        latest_ts = datetime.fromisoformat(latest_ts_str.replace("Z", "+00:00")).replace(tzinfo=None)
+        latest_ts = datetime.fromisoformat(
+            latest_ts_str.replace("Z", "+00:00")
+        ).replace(tzinfo=None)
 
         latest_anomalies = []
         for anom in anomalies:
@@ -351,7 +451,9 @@ async def _detect_and_persist_traffic_anomalies(redis: Redis, corridor_slug: str
             await _persist_anomalies_to_db(latest_anomalies)
 
     except Exception as e:
-        logger.error(f"[Persistence] Error detecting traffic anomalies: {e}", exc_info=True)
+        logger.error(
+            f"[Persistence] Error detecting traffic anomalies: {e}", exc_info=True
+        )
 
 
 async def _persist_anomalies_to_db(anomalies: List[Dict[str, Any]]) -> None:
@@ -359,15 +461,19 @@ async def _persist_anomalies_to_db(anomalies: List[Dict[str, Any]]) -> None:
     try:
         import asyncpg
     except ImportError:
-        logger.warning("[Persistence] asyncpg not installed — skipping PostgreSQL anomaly sync.")
+        logger.warning(
+            "[Persistence] asyncpg not installed — skipping PostgreSQL anomaly sync."
+        )
         return
 
     if not ai_settings.DATABASE_URL:
-        logger.warning("[Persistence] DATABASE_URL not configured — skipping PostgreSQL anomaly sync.")
+        logger.warning(
+            "[Persistence] DATABASE_URL not configured — skipping PostgreSQL anomaly sync."
+        )
         return
 
     pg_url = ai_settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    
+
     try:
         conn = await asyncpg.connect(pg_url)
         try:
@@ -380,19 +486,29 @@ async def _persist_anomalies_to_db(anomalies: List[Dict[str, Any]]) -> None:
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
                     ON CONFLICT (id) DO NOTHING
                     """,
-                    anom["id"], ts, anom["metric_name"], anom["severity"],
-                    anom["score"], anom["description"], anom["acknowledged"]
+                    anom["id"],
+                    ts,
+                    anom["metric_name"],
+                    anom["severity"],
+                    anom["score"],
+                    anom["description"],
+                    anom["acknowledged"],
                 )
-            logger.info(f"[Persistence] Successfully persisted {len(anomalies)} anomalies to PostgreSQL.")
+            logger.info(
+                f"[Persistence] Successfully persisted {len(anomalies)} anomalies to PostgreSQL."
+            )
         finally:
             await conn.close()
     except Exception as e:
-        logger.error(f"[Persistence] PostgreSQL execution error during anomaly sync: {e}")
+        logger.error(
+            f"[Persistence] PostgreSQL execution error during anomaly sync: {e}"
+        )
 
 
 # ==============================================================================
 # Social Media Ingestion Run & Persist Helpers
 # ==============================================================================
+
 
 async def _persist_social_result(result: IngestionResult) -> None:
     """
@@ -408,7 +524,9 @@ async def _persist_social_result(result: IngestionResult) -> None:
     # 1. Sync to Redis Cache
     redis_url = _get_redis_url()
     try:
-        async with from_url(redis_url, encoding="utf-8", decode_responses=True) as redis:
+        async with from_url(
+            redis_url, encoding="utf-8", decode_responses=True
+        ) as redis:
             current_payload = json.dumps(result.records)
             await redis.set("social:current", current_payload)
             logger.info(
@@ -421,7 +539,9 @@ async def _persist_social_result(result: IngestionResult) -> None:
                 await redis.lpush("social:history", record_payload)
                 await redis.ltrim("social:history", 0, 49)
 
-            logger.info(f"[Persistence] Successfully pushed social trends to Redis history list.")
+            logger.info(
+                f"[Persistence] Successfully pushed social trends to Redis history list."
+            )
     except Exception as e:
         logger.error(f"[Persistence] Redis execution error during social cache: {e}")
 
@@ -434,24 +554,30 @@ async def _persist_social_to_db(records: List[Dict[str, Any]]) -> None:
     try:
         import asyncpg
     except ImportError:
-        logger.warning("[Persistence] asyncpg not installed — skipping PostgreSQL social sync.")
+        logger.warning(
+            "[Persistence] asyncpg not installed — skipping PostgreSQL social sync."
+        )
         return
 
     if not ai_settings.DATABASE_URL:
-        logger.warning("[Persistence] DATABASE_URL not configured — skipping PostgreSQL social sync.")
+        logger.warning(
+            "[Persistence] DATABASE_URL not configured — skipping PostgreSQL social sync."
+        )
         return
 
     pg_url = ai_settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    
+
     try:
         conn = await asyncpg.connect(pg_url)
         try:
             for r in records:
                 # Parse timestamp safely
-                ts = datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00")).replace(tzinfo=None)
+                ts = datetime.fromisoformat(
+                    r["timestamp"].replace("Z", "+00:00")
+                ).replace(tzinfo=None)
                 post_id = r["post_id"]
                 complaint_id = f"complaint-tw-{post_id}"
-                
+
                 await conn.execute(
                     """
                     INSERT INTO social_complaints (
@@ -461,12 +587,26 @@ async def _persist_social_to_db(records: List[Dict[str, Any]]) -> None:
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                     ON CONFLICT (id) DO NOTHING
                     """,
-                    complaint_id, ts, r["platform"], r["text"], r["author_id"],
-                    r["matched_query_term"], r["category"], r["severity"], r["sentiment_score"],
-                    r.get("urgency_score", 0.0), r.get("explanation"), r.get("keywords"), r.get("cluster_tag")
+                    complaint_id,
+                    ts,
+                    r["platform"],
+                    r["text"],
+                    r["author_id"],
+                    r["matched_query_term"],
+                    r["category"],
+                    r["severity"],
+                    r["sentiment_score"],
+                    r.get("urgency_score", 0.0),
+                    r.get("explanation"),
+                    r.get("keywords"),
+                    r.get("cluster_tag"),
                 )
-            logger.info(f"[Persistence] Successfully persisted {len(records)} social complaints to PostgreSQL.")
+            logger.info(
+                f"[Persistence] Successfully persisted {len(records)} social complaints to PostgreSQL."
+            )
         finally:
             await conn.close()
     except Exception as e:
-        logger.error(f"[Persistence] PostgreSQL execution error during social sync: {e}")
+        logger.error(
+            f"[Persistence] PostgreSQL execution error during social sync: {e}"
+        )

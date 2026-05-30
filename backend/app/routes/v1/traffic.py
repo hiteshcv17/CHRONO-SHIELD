@@ -28,7 +28,7 @@ async def get_current_traffic_observations() -> CurrentTrafficResponse:
 )
 async def get_road_corridor_trends(
     corridor: str = Query(..., description="Target corridor identifier (e.g. NYC-I95)"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> TrafficTrendsResponse:
     """
     Query chronological historical sequences (up to the last 50 poll cycles) from PostgreSQL for a specific highway corridor.

@@ -19,7 +19,7 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
 )
 @cache_response(ttl=CacheTTL.HEALTH.value, prefix="health")
 async def get_infrastructure_diagnostics(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> InfrastructureHealthResponse:
     """
     Evaluates real-time utilization loads, database anomalies, and energy grid stability
@@ -29,7 +29,7 @@ async def get_infrastructure_diagnostics(
     return InfrastructureHealthResponse(
         overall_health_score=result["overall_health_score"],
         active_risks_count=result["active_risks_count"],
-        reports=result["reports"]
+        reports=result["reports"],
     )
 
 
@@ -41,16 +41,12 @@ async def get_infrastructure_diagnostics(
 )
 @cache_response(ttl=CacheTTL.HEALTH.value, prefix="health")
 async def get_city_infrastructure_health(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> CityHealthResponse:
     """
-    Evaluates real-time weather, traffic, grid energy load stability, active anomalies, 
-    and social media complaint signals to compile dynamic, normalized health ratings 
+    Evaluates real-time weather, traffic, grid energy load stability, active anomalies,
+    and social media complaint signals to compile dynamic, normalized health ratings
     and confidence scores for each infrastructure sector.
     """
     reports = await HealthService.get_city_infrastructure_health(db)
-    return CityHealthResponse(
-        success=True,
-        reports=reports
-    )
-
+    return CityHealthResponse(success=True, reports=reports)

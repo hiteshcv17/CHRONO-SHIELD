@@ -20,7 +20,7 @@ _MOCK_REGISTRY: List[AnomalyRecord] = [
         severity="CRITICAL",
         score=0.942,
         description="CPU load spiked anomalously beyond standard weekly deviation threshold.",
-        acknowledged=False
+        acknowledged=False,
     ),
     AnomalyRecord(
         id="anom-099",
@@ -29,8 +29,8 @@ _MOCK_REGISTRY: List[AnomalyRecord] = [
         severity="WARNING",
         score=0.814,
         description="Connection pool saturation detected triggering high-percentile transaction delays.",
-        acknowledged=True
-    )
+        acknowledged=True,
+    ),
 ]
 
 
@@ -55,7 +55,9 @@ class AnomalyService:
             ) from e
 
     @staticmethod
-    async def get_anomaly_by_id(db: AsyncSession, anomaly_id: str) -> Optional[AnomalyRecord]:
+    async def get_anomaly_by_id(
+        db: AsyncSession, anomaly_id: str
+    ) -> Optional[AnomalyRecord]:
         """Locates single incident records matching unique IDs.
 
         Args:
@@ -99,10 +101,10 @@ class AnomalyService:
 
     @staticmethod
     async def query_anomalies(
-        db: AsyncSession, 
-        metric: Optional[str] = None, 
-        severity: Optional[str] = None, 
-        limit: int = 50
+        db: AsyncSession,
+        metric: Optional[str] = None,
+        severity: Optional[str] = None,
+        limit: int = 50,
     ) -> List[AnomalyRecord]:
         """Retrieves logs of anomalies matching search filters.
 
@@ -121,9 +123,13 @@ class AnomalyService:
         if db is None:
             filtered = _MOCK_REGISTRY
             if metric:
-                filtered = [x for x in filtered if x.metric_name.lower() == metric.lower()]
+                filtered = [
+                    x for x in filtered if x.metric_name.lower() == metric.lower()
+                ]
             if severity:
-                filtered = [x for x in filtered if x.severity.upper() == severity.upper()]
+                filtered = [
+                    x for x in filtered if x.severity.upper() == severity.upper()
+                ]
             return filtered[:limit]
 
         stmt = select(AnomalyRecord)
@@ -140,12 +146,18 @@ class AnomalyService:
                 return records
         except Exception as e:
             if settings.ENVIRONMENT != "production":
-                logger.warning(f"DB query failed in dev mode, falling back to mock: {e}")
+                logger.warning(
+                    f"DB query failed in dev mode, falling back to mock: {e}"
+                )
                 filtered = _MOCK_REGISTRY
                 if metric:
-                    filtered = [x for x in filtered if x.metric_name.lower() == metric.lower()]
+                    filtered = [
+                        x for x in filtered if x.metric_name.lower() == metric.lower()
+                    ]
                 if severity:
-                    filtered = [x for x in filtered if x.severity.upper() == severity.upper()]
+                    filtered = [
+                        x for x in filtered if x.severity.upper() == severity.upper()
+                    ]
                 return filtered[:limit]
             logger.error(f"Database operation failed: {e}")
             raise AppHTTPException(
@@ -157,18 +169,22 @@ class AnomalyService:
         if settings.ENVIRONMENT != "production":
             filtered = _MOCK_REGISTRY
             if metric:
-                filtered = [x for x in filtered if x.metric_name.lower() == metric.lower()]
+                filtered = [
+                    x for x in filtered if x.metric_name.lower() == metric.lower()
+                ]
             if severity:
-                filtered = [x for x in filtered if x.severity.upper() == severity.upper()]
+                filtered = [
+                    x for x in filtered if x.severity.upper() == severity.upper()
+                ]
             return filtered[:limit]
 
         return []
 
     @staticmethod
     async def query_anomalies_paginated(
-        db: AsyncSession, 
-        metric: Optional[str] = None, 
-        severity: Optional[str] = None, 
+        db: AsyncSession,
+        metric: Optional[str] = None,
+        severity: Optional[str] = None,
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[List[AnomalyRecord], int]:
@@ -192,12 +208,16 @@ class AnomalyService:
         if db is None:
             filtered = _MOCK_REGISTRY
             if metric:
-                filtered = [x for x in filtered if x.metric_name.lower() == metric.lower()]
+                filtered = [
+                    x for x in filtered if x.metric_name.lower() == metric.lower()
+                ]
             if severity:
-                filtered = [x for x in filtered if x.severity.upper() == severity.upper()]
+                filtered = [
+                    x for x in filtered if x.severity.upper() == severity.upper()
+                ]
             total_count = len(filtered)
             offset = (page - 1) * page_size
-            return filtered[offset:offset + page_size], total_count
+            return filtered[offset : offset + page_size], total_count
 
         # Build base filter query
         filter_stmt = select(AnomalyRecord)
@@ -214,23 +234,33 @@ class AnomalyService:
 
             # Query paginated records
             offset = (page - 1) * page_size
-            paginated_stmt = filter_stmt.order_by(AnomalyRecord.timestamp.desc()).offset(offset).limit(page_size)
+            paginated_stmt = (
+                filter_stmt.order_by(AnomalyRecord.timestamp.desc())
+                .offset(offset)
+                .limit(page_size)
+            )
             result = await db.execute(paginated_stmt)
             records = list(result.scalars().all())
-            
+
             if records or total_count > 0:
                 return records, total_count
         except Exception as e:
             if settings.ENVIRONMENT != "production":
-                logger.warning(f"DB paginated query failed in dev mode, falling back to mock: {e}")
+                logger.warning(
+                    f"DB paginated query failed in dev mode, falling back to mock: {e}"
+                )
                 filtered = _MOCK_REGISTRY
                 if metric:
-                    filtered = [x for x in filtered if x.metric_name.lower() == metric.lower()]
+                    filtered = [
+                        x for x in filtered if x.metric_name.lower() == metric.lower()
+                    ]
                 if severity:
-                    filtered = [x for x in filtered if x.severity.upper() == severity.upper()]
+                    filtered = [
+                        x for x in filtered if x.severity.upper() == severity.upper()
+                    ]
                 total_count = len(filtered)
                 offset = (page - 1) * page_size
-                return filtered[offset:offset + page_size], total_count
+                return filtered[offset : offset + page_size], total_count
             logger.error(f"Database operation failed: {e}")
             raise AppHTTPException(
                 error_code=ErrorCode.SERVICE_UNAVAILABLE,
@@ -241,12 +271,16 @@ class AnomalyService:
         if settings.ENVIRONMENT != "production":
             filtered = _MOCK_REGISTRY
             if metric:
-                filtered = [x for x in filtered if x.metric_name.lower() == metric.lower()]
+                filtered = [
+                    x for x in filtered if x.metric_name.lower() == metric.lower()
+                ]
             if severity:
-                filtered = [x for x in filtered if x.severity.upper() == severity.upper()]
+                filtered = [
+                    x for x in filtered if x.severity.upper() == severity.upper()
+                ]
             total_count = len(filtered)
             offset = (page - 1) * page_size
-            return filtered[offset:offset + page_size], total_count
+            return filtered[offset : offset + page_size], total_count
 
         return [], 0
 
@@ -280,9 +314,9 @@ class AnomalyService:
             severity=payload.severity,
             score=payload.score,
             description=payload.description,
-            acknowledged=False
+            acknowledged=False,
         )
-        
+
         if db is None:
             _MOCK_REGISTRY.insert(0, new_record)
             return new_record
@@ -291,12 +325,16 @@ class AnomalyService:
             db.add(new_record)
             await db.commit()
             await db.refresh(new_record)
-            logger.info(f"Successfully persisted anomaly event '{payload.id}' to database.")
+            logger.info(
+                f"Successfully persisted anomaly event '{payload.id}' to database."
+            )
             return new_record
         except Exception as e:
             await db.rollback()
             if settings.ENVIRONMENT != "production":
-                logger.warning(f"DB insert failed in dev mode, falling back to mock insert: {e}")
+                logger.warning(
+                    f"DB insert failed in dev mode, falling back to mock insert: {e}"
+                )
                 _MOCK_REGISTRY.insert(0, new_record)
                 return new_record
             logger.error(f"Database insert failed for anomaly '{payload.id}': {e}")
@@ -307,7 +345,9 @@ class AnomalyService:
             ) from e
 
     @staticmethod
-    async def update_anomaly(db: AsyncSession, anomaly_id: str, payload: AnomalyUpdate) -> AnomalyRecord:
+    async def update_anomaly(
+        db: AsyncSession, anomaly_id: str, payload: AnomalyUpdate
+    ) -> AnomalyRecord:
         """Updates the acknowledgement state of incident signals.
 
         Args:
@@ -344,12 +384,16 @@ class AnomalyService:
             record.acknowledged = payload.acknowledged
             await db.commit()
             await db.refresh(record)
-            logger.info(f"Successfully updated acknowledgement for anomaly '{anomaly_id}'.")
+            logger.info(
+                f"Successfully updated acknowledgement for anomaly '{anomaly_id}'."
+            )
             return record
         except Exception as e:
             await db.rollback()
             if settings.ENVIRONMENT != "production":
-                logger.warning(f"DB update failed in dev mode, falling back to mock update: {e}")
+                logger.warning(
+                    f"DB update failed in dev mode, falling back to mock update: {e}"
+                )
                 for record in _MOCK_REGISTRY:
                     if record.id == anomaly_id:
                         record.acknowledged = payload.acknowledged

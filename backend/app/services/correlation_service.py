@@ -16,21 +16,77 @@ logger = logging.getLogger("correlation_service")
 
 # Mapping of variables to group names and display labels
 METRIC_META = {
-    "weather_temp": {"label": "Temperature (°C)", "group": "weather", "attr": "temperature_c"},
-    "weather_humidity": {"label": "Humidity (%)", "group": "weather", "attr": "humidity_pct"},
-    "weather_wind": {"label": "Wind Speed (m/s)", "group": "weather", "attr": "wind_speed_ms"},
-    "weather_precip": {"label": "Precipitation (mm)", "group": "weather", "attr": "precipitation_mm"},
-    "traffic_speed": {"label": "Traffic Flow Speed (km/h)", "group": "traffic", "attr": "flow_speed_kmh"},
-    "traffic_jam": {"label": "Traffic Jam Factor", "group": "traffic", "attr": "jam_factor"},
-    "traffic_incidents": {"label": "Traffic Incidents", "group": "traffic", "attr": "incident_count"},
-    "energy_load": {"label": "Grid Energy Load (kW)", "group": "energy", "attr": "grid_load_kw"},
-    "energy_solar": {"label": "Solar Output (kW)", "group": "energy", "attr": "solar_output_kw"},
-    "energy_demand": {"label": "Energy Demand (kW)", "group": "energy", "attr": "energy_demand_kw"},
-    "energy_stability": {"label": "Grid Stability (%)", "group": "energy", "attr": "grid_stability_pct"},
+    "weather_temp": {
+        "label": "Temperature (°C)",
+        "group": "weather",
+        "attr": "temperature_c",
+    },
+    "weather_humidity": {
+        "label": "Humidity (%)",
+        "group": "weather",
+        "attr": "humidity_pct",
+    },
+    "weather_wind": {
+        "label": "Wind Speed (m/s)",
+        "group": "weather",
+        "attr": "wind_speed_ms",
+    },
+    "weather_precip": {
+        "label": "Precipitation (mm)",
+        "group": "weather",
+        "attr": "precipitation_mm",
+    },
+    "traffic_speed": {
+        "label": "Traffic Flow Speed (km/h)",
+        "group": "traffic",
+        "attr": "flow_speed_kmh",
+    },
+    "traffic_jam": {
+        "label": "Traffic Jam Factor",
+        "group": "traffic",
+        "attr": "jam_factor",
+    },
+    "traffic_incidents": {
+        "label": "Traffic Incidents",
+        "group": "traffic",
+        "attr": "incident_count",
+    },
+    "energy_load": {
+        "label": "Grid Energy Load (kW)",
+        "group": "energy",
+        "attr": "grid_load_kw",
+    },
+    "energy_solar": {
+        "label": "Solar Output (kW)",
+        "group": "energy",
+        "attr": "solar_output_kw",
+    },
+    "energy_demand": {
+        "label": "Energy Demand (kW)",
+        "group": "energy",
+        "attr": "energy_demand_kw",
+    },
+    "energy_stability": {
+        "label": "Grid Stability (%)",
+        "group": "energy",
+        "attr": "grid_stability_pct",
+    },
     "anomaly_score": {"label": "AI Anomaly Score", "group": "anomaly", "attr": "score"},
-    "complaints_count": {"label": "Complaints Count", "group": "social", "attr": "count"},
-    "complaints_urgency": {"label": "Mean Complaint Urgency", "group": "social", "attr": "urgency_score"},
-    "complaints_sentiment": {"label": "Mean Complaint Sentiment", "group": "social", "attr": "sentiment_score"},
+    "complaints_count": {
+        "label": "Complaints Count",
+        "group": "social",
+        "attr": "count",
+    },
+    "complaints_urgency": {
+        "label": "Mean Complaint Urgency",
+        "group": "social",
+        "attr": "urgency_score",
+    },
+    "complaints_sentiment": {
+        "label": "Mean Complaint Sentiment",
+        "group": "social",
+        "attr": "sentiment_score",
+    },
 }
 
 
@@ -67,16 +123,14 @@ class CorrelationService:
         discard = timedelta(
             minutes=dt.minute % interval_minutes,
             seconds=dt.second,
-            microseconds=dt.microsecond
+            microseconds=dt.microsecond,
         )
         dt -= discard
         return dt
 
     @staticmethod
     async def get_aligned_dataframe(
-        db: AsyncSession,
-        city: str,
-        window_days: Optional[int] = None
+        db: AsyncSession, city: str, window_days: Optional[int] = None
     ) -> Tuple[List[datetime], Dict[str, List[float]]]:
         """
         Queries all sources (including social complaints), filters by rolling window_days,
@@ -86,7 +140,7 @@ class CorrelationService:
         corridor_map = {
             "new york": "NYC-I95",
             "london": "LON-M25",
-            "singapore": "LA-I405"
+            "singapore": "LA-I405",
         }
         corridor_id = corridor_map.get(city_slug, "NYC-I95")
 
@@ -113,13 +167,19 @@ class CorrelationService:
 
         # Fetch complaints records
         try:
-            stmt = select(SocialComplaintRecord).order_by(SocialComplaintRecord.timestamp.desc()).limit(150)
+            stmt = (
+                select(SocialComplaintRecord)
+                .order_by(SocialComplaintRecord.timestamp.desc())
+                .limit(150)
+            )
             complaints_res = await db.execute(stmt)
             complaints_records = list(complaints_res.scalars().all())
             if not complaints_records:
                 complaints_records = _MOCK_COMPLAINTS
         except Exception as e:
-            logger.error(f"PostgreSQL fetch failed for complaints correlation: {e}. Using mock fallback.")
+            logger.error(
+                f"PostgreSQL fetch failed for complaints correlation: {e}. Using mock fallback."
+            )
             complaints_records = _MOCK_COMPLAINTS
 
         # Filter by rolling window cutoff
@@ -213,10 +273,14 @@ class CorrelationService:
                         if k == "complaints_count":
                             current_val = float(len(bucket_posts))
                         elif k == "complaints_urgency":
-                            current_val = sum(getattr(r, "urgency_score", 0.0) for r in bucket_posts) / len(bucket_posts)
+                            current_val = sum(
+                                getattr(r, "urgency_score", 0.0) for r in bucket_posts
+                            ) / len(bucket_posts)
                             last_val[k] = current_val
                         elif k == "complaints_sentiment":
-                            current_val = sum(getattr(r, "sentiment_score", 0.5) for r in bucket_posts) / len(bucket_posts)
+                            current_val = sum(
+                                getattr(r, "sentiment_score", 0.5) for r in bucket_posts
+                            ) / len(bucket_posts)
                             last_val[k] = current_val
                     else:
                         if k == "complaints_count":
@@ -247,14 +311,14 @@ class CorrelationService:
 
     @staticmethod
     async def get_correlation_matrix(
-        db: AsyncSession, 
-        city: str,
-        window_days: Optional[int] = None
+        db: AsyncSession, city: str, window_days: Optional[int] = None
     ) -> Tuple[List[str], List[List[float]]]:
         """
         Calculate full correlation matrix between all numeric metrics.
         """
-        _, aligned = await CorrelationService.get_aligned_dataframe(db, city, window_days)
+        _, aligned = await CorrelationService.get_aligned_dataframe(
+            db, city, window_days
+        )
         variables = list(METRIC_META.keys())
         matrix: List[List[float]] = []
 
@@ -264,7 +328,9 @@ class CorrelationService:
                 if var1 == var2:
                     row.append(1.0)
                 else:
-                    coef = CorrelationService.pearson_correlation(aligned[var1], aligned[var2])
+                    coef = CorrelationService.pearson_correlation(
+                        aligned[var1], aligned[var2]
+                    )
                     row.append(round(coef, 3))
             matrix.append(row)
 
@@ -272,15 +338,17 @@ class CorrelationService:
 
     @staticmethod
     async def get_correlation_graph(
-        db: AsyncSession, 
-        city: str, 
+        db: AsyncSession,
+        city: str,
         threshold: float = 0.3,
-        window_days: Optional[int] = None
+        window_days: Optional[int] = None,
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Generate relational nodes and edges representing cross-source correlations above a threshold.
         """
-        _, aligned = await CorrelationService.get_aligned_dataframe(db, city, window_days)
+        _, aligned = await CorrelationService.get_aligned_dataframe(
+            db, city, window_days
+        )
         variables = list(METRIC_META.keys())
 
         nodes = [
@@ -294,20 +362,26 @@ class CorrelationService:
                 v1, v2 = variables[i], variables[j]
                 coef = CorrelationService.pearson_correlation(aligned[v1], aligned[v2])
                 if abs(coef) >= threshold:
-                    edges.append({
-                        "source": v1,
-                        "target": v2,
-                        "weight": round(coef, 3)
-                    })
+                    edges.append({"source": v1, "target": v2, "weight": round(coef, 3)})
 
         return nodes, edges
 
     @staticmethod
-    async def get_activity_intensity(db: AsyncSession, city: str) -> Tuple[List[str], List[int], List[List[float]]]:
+    async def get_activity_intensity(
+        db: AsyncSession, city: str
+    ) -> Tuple[List[str], List[int], List[List[float]]]:
         """
         Generate a 7x24 grid (Day-of-Week x Hour) representing infrastructure activity intensity.
         """
-        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        days = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
         hours = list(range(24))
         matrix: List[List[float]] = []
 
@@ -315,11 +389,11 @@ class CorrelationService:
             row: List[float] = []
             for hour in hours:
                 if dow < 5:  # Weekday rush hours
-                    morning_peak = math.exp(-((hour - 8.0) / 1.5) ** 2)
-                    evening_peak = math.exp(-((hour - 17.5) / 2.0) ** 2)
+                    morning_peak = math.exp(-(((hour - 8.0) / 1.5) ** 2))
+                    evening_peak = math.exp(-(((hour - 17.5) / 2.0) ** 2))
                     intensity = 0.2 + 0.55 * max(morning_peak, evening_peak)
                 else:  # Weekend afternoon leisure peak
-                    weekend_peak = math.exp(-((hour - 13.0) / 3.0) ** 2)
+                    weekend_peak = math.exp(-(((hour - 13.0) / 3.0) ** 2))
                     intensity = 0.15 + 0.35 * weekend_peak
 
                 day_multiplier = 0.9 + (dow * 0.02) if dow < 5 else 0.7
@@ -330,11 +404,21 @@ class CorrelationService:
         return days, hours, matrix
 
     @staticmethod
-    async def get_anomaly_concentration(db: AsyncSession, city: str) -> Tuple[List[str], List[int], List[List[int]]]:
+    async def get_anomaly_concentration(
+        db: AsyncSession, city: str
+    ) -> Tuple[List[str], List[int], List[List[int]]]:
         """
         Generate a 7x24 grid (Day-of-Week x Hour) representing anomaly event frequencies.
         """
-        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        days = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
         hours = list(range(24))
         matrix: List[List[int]] = []
 
@@ -342,12 +426,14 @@ class CorrelationService:
             row: List[int] = []
             for hour in hours:
                 if dow < 5:
-                    intensity = 1.0 * math.exp(-((hour - 9.0) / 1.0) ** 2) + 1.2 * math.exp(-((hour - 18.0) / 1.2) ** 2)
+                    intensity = 1.0 * math.exp(
+                        -(((hour - 9.0) / 1.0) ** 2)
+                    ) + 1.2 * math.exp(-(((hour - 18.0) / 1.2) ** 2))
                     base_count = 1 + int(intensity * 8.0)
                 else:
-                    intensity = 0.8 * math.exp(-((hour - 14.0) / 2.0) ** 2)
+                    intensity = 0.8 * math.exp(-(((hour - 14.0) / 2.0) ** 2))
                     base_count = int(intensity * 4.0)
-                
+
                 if (hour + dow) % 7 == 0:
                     base_count += 1
                 row.append(base_count)
@@ -356,48 +442,61 @@ class CorrelationService:
         return days, hours, matrix
 
     @staticmethod
-    async def get_synchronized_anomalies(db: AsyncSession, city: str) -> List[Dict[str, Any]]:
+    async def get_synchronized_anomalies(
+        db: AsyncSession, city: str
+    ) -> List[Dict[str, Any]]:
         """
         Scan aligned telemetry timelines to detect concurrent anomalies across systems.
         """
         timestamps, aligned = await CorrelationService.get_aligned_dataframe(db, city)
         anomalies = []
-        
+
         for idx, t in enumerate(timestamps):
             metrics = {k: v[idx] for k, v in aligned.items()}
-            
+
             # Check spike triggers
             precip_spike = metrics.get("weather_precip", 0.0) > 1.5
             jam_spike = metrics.get("traffic_jam", 0.0) > 0.6
-            complaint_spike = metrics.get("complaints_urgency", 0.0) > 65.0 or metrics.get("complaints_count", 0.0) >= 1.0
+            complaint_spike = (
+                metrics.get("complaints_urgency", 0.0) > 65.0
+                or metrics.get("complaints_count", 0.0) >= 1.0
+            )
             anomaly_spike = metrics.get("anomaly_score", 0.0) > 0.75
-            
+
             active_spikes = []
-            if precip_spike: active_spikes.append("Heavy Rain")
-            if jam_spike: active_spikes.append("Traffic Congestion")
-            if complaint_spike: active_spikes.append("High Complaint Urgency")
-            if anomaly_spike: active_spikes.append("AI Anomaly Spike")
-            
+            if precip_spike:
+                active_spikes.append("Heavy Rain")
+            if jam_spike:
+                active_spikes.append("Traffic Congestion")
+            if complaint_spike:
+                active_spikes.append("High Complaint Urgency")
+            if anomaly_spike:
+                active_spikes.append("AI Anomaly Spike")
+
             if len(active_spikes) >= 2:
                 severity = "HIGH" if len(active_spikes) >= 3 else "MEDIUM"
                 description = f"Synchronized failure cascade: {', '.join(active_spikes)} occurred simultaneously."
-                
+
                 metric_values = {
                     "weather_precip": round(metrics.get("weather_precip", 0.0), 2),
                     "traffic_jam": round(metrics.get("traffic_jam", 0.0), 2),
                     "complaints_count": int(metrics.get("complaints_count", 0.0)),
-                    "complaints_urgency": round(metrics.get("complaints_urgency", 0.0), 1),
-                    "anomaly_score": round(metrics.get("anomaly_score", 0.0), 2)
+                    "complaints_urgency": round(
+                        metrics.get("complaints_urgency", 0.0), 1
+                    ),
+                    "anomaly_score": round(metrics.get("anomaly_score", 0.0), 2),
                 }
-                
-                anomalies.append({
-                    "id": f"syn-anom-{t.strftime('%M%S')}-{idx}",
-                    "timestamp": t,
-                    "metrics": metric_values,
-                    "severity": severity,
-                    "description": description
-                })
-                
+
+                anomalies.append(
+                    {
+                        "id": f"syn-anom-{t.strftime('%M%S')}-{idx}",
+                        "timestamp": t,
+                        "metrics": metric_values,
+                        "severity": severity,
+                        "description": description,
+                    }
+                )
+
         # If no synchronized anomalies detected (e.g. clean simulated environment), return a couple of structured mocks!
         if not anomalies:
             now = datetime.utcnow()
@@ -405,28 +504,42 @@ class CorrelationService:
                 {
                     "id": "syn-anom-1",
                     "timestamp": now - timedelta(minutes=15),
-                    "metrics": {"weather_precip": 2.5, "traffic_jam": 0.82, "complaints_count": 2, "complaints_urgency": 88.5, "anomaly_score": 0.88},
+                    "metrics": {
+                        "weather_precip": 2.5,
+                        "traffic_jam": 0.82,
+                        "complaints_count": 2,
+                        "complaints_urgency": 88.5,
+                        "anomaly_score": 0.88,
+                    },
                     "severity": "HIGH",
-                    "description": "Synchronized failure cascade: Heavy Rain triggered Traffic Congestion & high Internet outage complaints."
+                    "description": "Synchronized failure cascade: Heavy Rain triggered Traffic Congestion & high Internet outage complaints.",
                 },
                 {
                     "id": "syn-anom-2",
                     "timestamp": now - timedelta(hours=2, minutes=30),
-                    "metrics": {"weather_precip": 0.0, "traffic_jam": 0.72, "complaints_count": 1, "complaints_urgency": 68.0, "anomaly_score": 0.76},
+                    "metrics": {
+                        "weather_precip": 0.0,
+                        "traffic_jam": 0.72,
+                        "complaints_count": 1,
+                        "complaints_urgency": 68.0,
+                        "anomaly_score": 0.76,
+                    },
                     "severity": "MEDIUM",
-                    "description": "Synchronized failure cascade: High Complaint Urgency matched Traffic Congestion spikes near Sector 9."
-                }
+                    "description": "Synchronized failure cascade: High Complaint Urgency matched Traffic Congestion spikes near Sector 9.",
+                },
             ]
-            
+
         return anomalies
 
     @staticmethod
-    def calculate_lagged_pearson(x: List[float], y: List[float], lag_steps: int) -> float:
+    def calculate_lagged_pearson(
+        x: List[float], y: List[float], lag_steps: int
+    ) -> float:
         """Calculate Pearson Correlation between x and y shifted by lag_steps."""
         n = len(x)
         if n < 10:
             return 0.0
-            
+
         if lag_steps == 0:
             return CorrelationService.pearson_correlation(x, y)
         elif lag_steps > 0:
@@ -436,38 +549,48 @@ class CorrelationService:
             abs_lag = abs(lag_steps)
             x_shifted = x[abs_lag:]
             y_shifted = y[:-abs_lag]
-            
+
         return CorrelationService.pearson_correlation(x_shifted, y_shifted)
 
     @staticmethod
-    async def get_lag_relationships(db: AsyncSession, city: str) -> List[Dict[str, Any]]:
+    async def get_lag_relationships(
+        db: AsyncSession, city: str
+    ) -> List[Dict[str, Any]]:
         """
         Compute dynamic lag-correlations to identify cascade directions and hidden temporal relationships.
         """
         _, aligned = await CorrelationService.get_aligned_dataframe(db, city)
         relationships = []
-        
+
         pairs = [
             ("weather_precip", "traffic_jam", "Precipitation leads Traffic Congestion"),
-            ("traffic_jam", "complaints_urgency", "Traffic Congestion leads Complaint Urgency"),
-            ("anomaly_score", "complaints_count", "AI Anomaly Score leads Complaints Spikes")
+            (
+                "traffic_jam",
+                "complaints_urgency",
+                "Traffic Congestion leads Complaint Urgency",
+            ),
+            (
+                "anomaly_score",
+                "complaints_count",
+                "AI Anomaly Score leads Complaints Spikes",
+            ),
         ]
-        
+
         for v1, v2, desc in pairs:
             if v1 not in aligned or v2 not in aligned:
                 continue
-                
+
             x, y = aligned[v1], aligned[v2]
             best_lag = 0
             best_corr = 0.0
-            
+
             # Search lags from -3 to +3 steps (representing -30 to +30 minutes in 10-min buckets)
             for step in [-3, -2, -1, 0, 1, 2, 3]:
                 corr = CorrelationService.calculate_lagged_pearson(x, y, step)
                 if abs(corr) > abs(best_corr):
                     best_corr = corr
                     best_lag = step * 10
-                    
+
             if abs(best_corr) < 0.25:
                 if v1 == "weather_precip":
                     best_corr, best_lag = 0.78, 20
@@ -475,18 +598,20 @@ class CorrelationService:
                     best_corr, best_lag = 0.65, 10
                 else:
                     best_corr, best_lag = 0.82, 10
-                    
+
             explanation = (
                 f"{desc} by {abs(best_lag)} minutes with a peak coefficient of {best_corr:.2f}. "
                 f"This matches typical systemic propagation patterns under load."
             )
-            
-            relationships.append({
-                "metric_a": METRIC_META[v1]["label"],
-                "metric_b": METRIC_META[v2]["label"],
-                "lag_minutes": best_lag,
-                "correlation": round(best_corr, 2),
-                "description": explanation
-            })
-            
+
+            relationships.append(
+                {
+                    "metric_a": METRIC_META[v1]["label"],
+                    "metric_b": METRIC_META[v2]["label"],
+                    "lag_minutes": best_lag,
+                    "correlation": round(best_corr, 2),
+                    "description": explanation,
+                }
+            )
+
         return relationships

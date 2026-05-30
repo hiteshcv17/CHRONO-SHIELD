@@ -11,13 +11,12 @@ class CacheTTL(IntEnum):
     DEFAULT = 60
 
 
-
 class SeverityWeight(float, Enum):
     CRITICAL = 40.0
     HIGH = 25.0
     MEDIUM = 12.0
     LOW = 5.0
-    
+
     @classmethod
     def get_weight(cls, severity: str) -> float:
         try:

@@ -15,6 +15,7 @@ class TemporalDataPipeline:
     for multi-dimensional time-series infrastructure logs.
     Integrated with the modular TemporalPreprocessor pipeline core.
     """
+
     def __init__(self, sequence_length: int = None):
         self.sequence_length = sequence_length or ai_settings.SEQUENCE_LENGTH
         self.preprocessor = TemporalPreprocessor()
@@ -29,11 +30,15 @@ class TemporalDataPipeline:
         self.mean = np.mean(data, axis=0)
         self.std = np.std(data, axis=0)
         self.std[self.std == 0] = 1e-8
-        
+
         # Fit inside our preprocessor too
         df_temp = pd.DataFrame(data, columns=[f"f{i}" for i in range(data.shape[1])])
-        self.preprocessor.fit_scaler(df_temp, columns=df_temp.columns, strategy="standard")
-        logger.info(f"Scaler successfully calibrated. Mean dimensions: {self.mean.shape}")
+        self.preprocessor.fit_scaler(
+            df_temp, columns=df_temp.columns, strategy="standard"
+        )
+        logger.info(
+            f"Scaler successfully calibrated. Mean dimensions: {self.mean.shape}"
+        )
 
     def transform(self, data: np.ndarray) -> np.ndarray:
         """
@@ -41,12 +46,14 @@ class TemporalDataPipeline:
         """
         if self.mean is None or self.std is None:
             raise ValueError("Scaler must be fit prior to running data transforms.")
-        
+
         df_temp = pd.DataFrame(data, columns=[f"f{i}" for i in range(data.shape[1])])
         df_scaled = self.preprocessor.transform(df_temp, columns=df_temp.columns)
         return df_scaled.values
 
-    def build_sliding_sequences(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def build_sliding_sequences(
+        self, data: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Constructs overlapping sequences matching target lengths for temporal neural nets.
         """
@@ -55,7 +62,9 @@ class TemporalDataPipeline:
             logger.warning(
                 f"Insufficient data samples ({num_samples}) to assemble sequence length {self.sequence_length}."
             )
-            return np.empty((0, self.sequence_length, data.shape[-1])), np.empty((0, data.shape[-1]))
+            return np.empty((0, self.sequence_length, data.shape[-1])), np.empty(
+                (0, data.shape[-1])
+            )
 
         sequences = []
         targets = []
@@ -65,24 +74,34 @@ class TemporalDataPipeline:
 
         return np.array(sequences), np.array(targets)
 
-    def preprocess_raw_metrics(self, df: pd.DataFrame, feature_columns: List[str]) -> Tuple[np.ndarray, np.ndarray]:
+    def preprocess_raw_metrics(
+        self, df: pd.DataFrame, feature_columns: List[str]
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         End-to-end processing pipeline using our advanced preprocessor framework.
         """
-        logger.info(f"Ingesting raw metrics to preprocessing pipeline. Records: {len(df)}")
-        
+        logger.info(
+            f"Ingesting raw metrics to preprocessing pipeline. Records: {len(df)}"
+        )
+
         # 1. Clean missing values and outliers
         df_cleaned = df.copy()
-        df_cleaned = self.preprocessor.handle_missing_values(df_cleaned, columns=feature_columns, strategy="linear")
-        df_cleaned = self.preprocessor.filter_outliers(df_cleaned, columns=feature_columns, strategy="iqr", action="clip")
-        
+        df_cleaned = self.preprocessor.handle_missing_values(
+            df_cleaned, columns=feature_columns, strategy="linear"
+        )
+        df_cleaned = self.preprocessor.filter_outliers(
+            df_cleaned, columns=feature_columns, strategy="iqr", action="clip"
+        )
+
         # 2. Smooth data lines
-        df_smoothed = self.preprocessor.smooth_data(df_cleaned, columns=feature_columns, strategy="ema", span=3)
-        
+        df_smoothed = self.preprocessor.smooth_data(
+            df_cleaned, columns=feature_columns, strategy="ema", span=3
+        )
+
         raw_values = df_smoothed[feature_columns].values
-        
+
         # 3. Fit and apply scale transforms
         self.fit_scaler(raw_values)
         normalized = self.transform(raw_values)
-        
+
         return self.build_sliding_sequences(normalized)

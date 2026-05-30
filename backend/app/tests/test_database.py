@@ -22,7 +22,7 @@ class TestDatabaseScaffolding:
         """Verify the anomaly_records table structure."""
         model = AnomalyRecord
         assert model.__tablename__ == "anomaly_records"
-        
+
         # Verify core columns exist
         columns = [c.name for c in model.__table__.columns]
         assert "id" in columns
@@ -49,10 +49,14 @@ class TestDatabaseScaffolding:
         # Verify composite index exists
         indexes = model.__table__.indexes
         index_names = {idx.name for idx in indexes}
-        assert "idx_weather_loc_time" in index_names, "Composite index idx_weather_loc_time is missing!"
+        assert (
+            "idx_weather_loc_time" in index_names
+        ), "Composite index idx_weather_loc_time is missing!"
 
         # Verify index columns
-        composite_idx = next(idx for idx in indexes if idx.name == "idx_weather_loc_time")
+        composite_idx = next(
+            idx for idx in indexes if idx.name == "idx_weather_loc_time"
+        )
         idx_cols = [col.name for col in composite_idx.columns]
         assert "location" in idx_cols
         assert "timestamp" in idx_cols
@@ -74,9 +78,13 @@ class TestDatabaseScaffolding:
         # Verify composite index exists
         indexes = model.__table__.indexes
         index_names = {idx.name for idx in indexes}
-        assert "idx_traffic_corridor_time" in index_names, "Composite index idx_traffic_corridor_time is missing!"
+        assert (
+            "idx_traffic_corridor_time" in index_names
+        ), "Composite index idx_traffic_corridor_time is missing!"
 
-        composite_idx = next(idx for idx in indexes if idx.name == "idx_traffic_corridor_time")
+        composite_idx = next(
+            idx for idx in indexes if idx.name == "idx_traffic_corridor_time"
+        )
         idx_cols = [col.name for col in composite_idx.columns]
         assert "corridor_id" in idx_cols
         assert "timestamp" in idx_cols

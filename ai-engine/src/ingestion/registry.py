@@ -33,6 +33,7 @@ logger = logging.getLogger("ingestion.registry")
 # Registry Singleton
 # ==============================================================================
 
+
 class SourceRegistry:
     """
     Thread-safe registry mapping source names → their concrete classes.
@@ -106,6 +107,7 @@ registry = SourceRegistry()
 # @register_source Decorator
 # ==============================================================================
 
+
 def register_source(name: str):
     """
     Class decorator that self-registers a BaseDataSource subclass
@@ -116,6 +118,7 @@ def register_source(name: str):
         class WeatherDataSource(BaseDataSource):
             ...
     """
+
     def decorator(cls: Type[BaseDataSource]) -> Type[BaseDataSource]:
         if not issubclass(cls, BaseDataSource):
             raise TypeError(
@@ -123,4 +126,5 @@ def register_source(name: str):
             )
         registry.register(name.lower(), cls)
         return cls
+
     return decorator

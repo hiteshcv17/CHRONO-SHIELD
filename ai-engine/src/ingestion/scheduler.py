@@ -22,6 +22,7 @@ try:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     from apscheduler.triggers.interval import IntervalTrigger
     from apscheduler.job import Job
+
     _APSCHEDULER_AVAILABLE = True
 except ImportError:
     _APSCHEDULER_AVAILABLE = False
@@ -35,6 +36,7 @@ logger = logging.getLogger("ingestion.scheduler")
 # ==============================================================================
 # Job execution wrapper
 # ==============================================================================
+
 
 async def _run_source_job(source: BaseDataSource) -> None:
     """
@@ -55,11 +57,14 @@ async def _run_source_job(source: BaseDataSource) -> None:
         # Record ingestion counts in Prometheus
         try:
             from src.utils.prometheus import INGESTION_COUNT
+
             records_count = getattr(result, "records_count", 1)
             source_type = getattr(meta, "source_type", "unknown")
             INGESTION_COUNT.labels(source_type=source_type).inc(records_count)
         except Exception as prom_exc:
-            logger.warning(f"[Scheduler] Failed to record ingestion Prometheus metric: {prom_exc}")
+            logger.warning(
+                f"[Scheduler] Failed to record ingestion Prometheus metric: {prom_exc}"
+            )
 
     except Exception as exc:
         logger.error(
@@ -71,6 +76,7 @@ async def _run_source_job(source: BaseDataSource) -> None:
 # ==============================================================================
 # IngestionScheduler
 # ==============================================================================
+
 
 class IngestionScheduler:
     """
@@ -125,9 +131,9 @@ class IngestionScheduler:
             id=job_id,
             name=f"Ingest: {meta.name}",
             replace_existing=True,
-            max_instances=1,          # Prevent overlapping runs
-            coalesce=True,            # Merge missed fires into one
-            misfire_grace_time=30,    # Allow 30s late execution
+            max_instances=1,  # Prevent overlapping runs
+            coalesce=True,  # Merge missed fires into one
+            misfire_grace_time=30,  # Allow 30s late execution
         )
         logger.info(
             f"[Scheduler] Registered job '{job_id}' → "
@@ -156,8 +162,7 @@ class IngestionScheduler:
         self._scheduler.start()
         self._running = True
         logger.info(
-            f"[Scheduler] Started. "
-            f"Active jobs: {len(self._scheduler.get_jobs())}"
+            f"[Scheduler] Started. " f"Active jobs: {len(self._scheduler.get_jobs())}"
         )
 
     async def stop(self) -> None:
@@ -208,13 +213,15 @@ class IngestionScheduler:
         jobs = []
         for job in self._scheduler.get_jobs():
             next_run_time = getattr(job, "next_run_time", None)
-            jobs.append({
-                "id": job.id,
-                "source": job.id.replace("job_", ""),
-                "name": job.name,
-                "next_run": next_run_time.isoformat() if next_run_time else None,
-                "status": "active" if next_run_time else "paused",
-            })
+            jobs.append(
+                {
+                    "id": job.id,
+                    "source": job.id.replace("job_", ""),
+                    "name": job.name,
+                    "next_run": next_run_time.isoformat() if next_run_time else None,
+                    "status": "active" if next_run_time else "paused",
+                }
+            )
         return jobs
 
     @property

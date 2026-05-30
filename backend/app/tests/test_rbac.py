@@ -9,6 +9,7 @@ from app.models.user import User
 
 client = TestClient(app)
 
+
 class TestRBAC:
     @pytest.fixture(autouse=True)
     def setup_overrides(self):
@@ -26,7 +27,7 @@ class TestRBAC:
             username="mockoperator",
             email="mock@chronoshield.ai",
             role=role,
-            is_active=True
+            is_active=True,
         )
         app.dependency_overrides[get_current_user] = lambda: mock_user
 

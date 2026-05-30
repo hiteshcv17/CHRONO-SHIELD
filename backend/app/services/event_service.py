@@ -49,7 +49,9 @@ class EventService:
 
     async def list_open_events(self, db: AsyncSession) -> List[AnomalyEvent]:
         """Return all events whose status is ``open`` or ``acknowledged``."""
-        stmt = select(AnomalyEvent).where(AnomalyEvent.lifecycle_status.in_(["open", "acknowledged"]))
+        stmt = select(AnomalyEvent).where(
+            AnomalyEvent.lifecycle_status.in_(["open", "acknowledged"])
+        )
         result = await db.execute(stmt)
         return result.scalars().all()
 
@@ -87,7 +89,9 @@ class EventService:
         await db.commit()
         return result.rowcount
 
-    async def get_event(self, db: AsyncSession, event_id: int) -> Optional[AnomalyEvent]:
+    async def get_event(
+        self, db: AsyncSession, event_id: int
+    ) -> Optional[AnomalyEvent]:
         stmt = select(AnomalyEvent).where(AnomalyEvent.id == event_id)
         result = await db.execute(stmt)
         return result.scalar_one_or_none()

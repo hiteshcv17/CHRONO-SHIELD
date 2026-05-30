@@ -13,9 +13,27 @@ logger = logging.getLogger("energy_service")
 
 # Monitored locations and baseline values for simulation
 GRID_METADATA = {
-    "new york": {"location": "New York", "demand_base": 5000.0, "load_base": 4800.0, "stability_base": 98.5, "solar_base": 800.0},
-    "london": {"location": "London", "demand_base": 4000.0, "load_base": 3950.0, "stability_base": 97.2, "solar_base": 400.0},
-    "singapore": {"location": "Singapore", "demand_base": 6500.0, "load_base": 6400.0, "stability_base": 99.1, "solar_base": 1200.0},
+    "new york": {
+        "location": "New York",
+        "demand_base": 5000.0,
+        "load_base": 4800.0,
+        "stability_base": 98.5,
+        "solar_base": 800.0,
+    },
+    "london": {
+        "location": "London",
+        "demand_base": 4000.0,
+        "load_base": 3950.0,
+        "stability_base": 97.2,
+        "solar_base": 400.0,
+    },
+    "singapore": {
+        "location": "Singapore",
+        "demand_base": 6500.0,
+        "load_base": 6400.0,
+        "stability_base": 99.1,
+        "solar_base": 1200.0,
+    },
 }
 
 
@@ -37,9 +55,7 @@ class EnergyService:
                 records = [EnergyRecord(**r) for r in raw_records]
                 logger.info("Retrieved current energy telemetry from Redis.")
                 return CurrentEnergyResponse(
-                    success=True,
-                    fetched_at=datetime.utcnow(),
-                    records=records
+                    success=True, fetched_at=datetime.utcnow(), records=records
                 )
         except Exception as e:
             logger.error(f"Failed to query energy from Redis: {e}")
@@ -57,18 +73,16 @@ class EnergyService:
                     grid_load_kw=round(load, 1),
                     solar_output_kw=round(solar, 1),
                     energy_demand_kw=round(demand, 1),
-                    grid_stability_pct=round(stability, 1)
+                    grid_stability_pct=round(stability, 1),
                 )
             )
 
-        return CurrentEnergyResponse(
-            success=False,
-            fetched_at=now,
-            records=records
-        )
+        return CurrentEnergyResponse(success=False, fetched_at=now, records=records)
 
     @staticmethod
-    async def get_energy_trends(db: AsyncSession, location: str) -> EnergyTrendsResponse:
+    async def get_energy_trends(
+        db: AsyncSession, location: str
+    ) -> EnergyTrendsResponse:
         """
         Query historical energy telemetry trends directly from PostgreSQL.
         """
@@ -107,21 +121,29 @@ class EnergyService:
                         grid_load_kw=r.grid_load_kw,
                         solar_output_kw=r.solar_output_kw,
                         energy_demand_kw=r.energy_demand_kw,
-                        grid_stability_pct=r.grid_stability_pct
+                        grid_stability_pct=r.grid_stability_pct,
                     )
                     for r in chronological_records
                 ]
-                logger.info(f"Retrieved {len(records)} energy trend records from PostgreSQL.")
+                logger.info(
+                    f"Retrieved {len(records)} energy trend records from PostgreSQL."
+                )
                 return EnergyTrendsResponse(location=loc_name, records=records)
         except Exception as e:
-            logger.error(f"Failed to query energy history for {loc_name} from PostgreSQL: {e}")
+            logger.error(
+                f"Failed to query energy history for {loc_name} from PostgreSQL: {e}"
+            )
 
         # Fallback simulation history: 24 points at 10-minute offsets
-        logger.warning(f"No PostgreSQL historical trends for {loc_name} — generating simulated sequences.")
+        logger.warning(
+            f"No PostgreSQL historical trends for {loc_name} — generating simulated sequences."
+        )
         now = datetime.utcnow()
         for i in range(24):
             time_offset = now - timedelta(minutes=(24 - i) * 10)
-            demand, load, stability, solar = simulate_energy_state(time_offset.hour, meta)
+            demand, load, stability, solar = simulate_energy_state(
+                time_offset.hour, meta
+            )
             records.append(
                 EnergyRecord(
                     timestamp=time_offset,
@@ -129,7 +151,7 @@ class EnergyService:
                     grid_load_kw=round(load, 1),
                     solar_output_kw=round(solar, 1),
                     energy_demand_kw=round(demand, 1),
-                    grid_stability_pct=round(stability, 1)
+                    grid_stability_pct=round(stability, 1),
                 )
             )
 
@@ -142,11 +164,16 @@ def simulate_energy_state(hour: float, meta: Dict[str, Any]) -> tuple:
     and load tracking demand with stability fluctuations.
     """
     # Solar peaks at 12:00 (midday)
-    solar_factor = max(0.0, math.sin((hour - 6) * math.pi / 12)) if 6.0 <= hour <= 18.0 else 0.0
+    solar_factor = (
+        max(0.0, math.sin((hour - 6) * math.pi / 12)) if 6.0 <= hour <= 18.0 else 0.0
+    )
     solar = meta["solar_base"] * solar_factor
 
     # Demand peak at 18:00 (evening peak) and minor peak at 8:00 AM
-    demand_factor = 0.7 + 0.3 * (0.4 * math.exp(-((hour - 8.0) / 2.0) ** 2) + 0.8 * math.exp(-((hour - 18.0) / 3.0) ** 2))
+    demand_factor = 0.7 + 0.3 * (
+        0.4 * math.exp(-(((hour - 8.0) / 2.0) ** 2))
+        + 0.8 * math.exp(-(((hour - 18.0) / 3.0) ** 2))
+    )
     demand = meta["demand_base"] * demand_factor
 
     # Load follows demand closely with small stochastic variations
@@ -154,7 +181,9 @@ def simulate_energy_state(hour: float, meta: Dict[str, Any]) -> tuple:
     load = demand * 0.95 + load_variance
 
     # Grid stability dips slightly during high load peaks
-    stability_dip = 5.0 * (demand / meta["demand_base"]) if demand > meta["demand_base"] else 1.0
+    stability_dip = (
+        5.0 * (demand / meta["demand_base"]) if demand > meta["demand_base"] else 1.0
+    )
     stability = max(80.0, min(100.0, meta["stability_base"] - stability_dip))
 
     return demand, load, stability, solar

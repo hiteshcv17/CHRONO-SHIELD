@@ -4,6 +4,7 @@ app/core/metrics — Canonical forecast error metric functions.
 Single source of truth for all accuracy measures used across the platform.
 All functions are pure, stateless, and independently testable.
 """
+
 import math
 import numpy as np
 
@@ -71,8 +72,8 @@ def compute_all(actual: Array, predicted: Array) -> dict:
         }
     """
     return {
-        "mae":  round(mae(actual, predicted),  4),
+        "mae": round(mae(actual, predicted), 4),
         "rmse": round(rmse(actual, predicted), 4),
         "mape": round(mape(actual, predicted), 4),
-        "r2":   round(r2(actual, predicted),   4),
+        "r2": round(r2(actual, predicted), 4),
     }

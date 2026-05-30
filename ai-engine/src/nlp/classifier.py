@@ -15,6 +15,7 @@ from typing import List, Dict, Any, Optional
 try:
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.cluster import KMeans
+
     _SKLEARN_AVAILABLE = True
 except ImportError:
     _SKLEARN_AVAILABLE = False
@@ -37,26 +38,67 @@ class InfrastructureNLPClassifier:
         # 1. Define Category Keywords and Base Weights
         self.category_patterns = {
             "POWER": [
-                "power outage", "blackout", "no power", "electricity grid", "power line",
-                "no electricity", "blown transformer", "substation down", "grid failure", "grid outage"
+                "power outage",
+                "blackout",
+                "no power",
+                "electricity grid",
+                "power line",
+                "no electricity",
+                "blown transformer",
+                "substation down",
+                "grid failure",
+                "grid outage",
             ],
             "TRAFFIC": [
-                "traffic jam", "gridlock", "congestion", "heavy traffic", "accident blocked",
-                "road blocked", "bumper to bumper", "lanes closed", "highway block", "car crash"
+                "traffic jam",
+                "gridlock",
+                "congestion",
+                "heavy traffic",
+                "accident blocked",
+                "road blocked",
+                "bumper to bumper",
+                "lanes closed",
+                "highway block",
+                "car crash",
             ],
             "WATER": [
-                "water leakage", "burst pipe", "water main leak", "flooding", "no water",
-                "water pressure", "sewer backup", "drain clogged", "pipe leak", "flooded street"
+                "water leakage",
+                "burst pipe",
+                "water main leak",
+                "flooding",
+                "no water",
+                "water pressure",
+                "sewer backup",
+                "drain clogged",
+                "pipe leak",
+                "flooded street",
             ],
             "INTERNET": [
-                "wifi failed", "wifi down", "network down", "no signal", "internet outage",
-                "fiber cut", "offline", "slow connection", "broadband issue", "no internet", "network failure"
+                "wifi failed",
+                "wifi down",
+                "network down",
+                "no signal",
+                "internet outage",
+                "fiber cut",
+                "offline",
+                "slow connection",
+                "broadband issue",
+                "no internet",
+                "network failure",
             ],
             "PUBLIC_INFRASTRUCTURE": [
-                "pothole", "traffic light broken", "broken street light", "bridge damage",
-                "fallen tree", "sidewalk cracked", "public park litter", "clogged storm drain",
-                "damaged railing", "graffiti", "street light out"
-            ]
+                "pothole",
+                "traffic light broken",
+                "broken street light",
+                "bridge damage",
+                "fallen tree",
+                "sidewalk cracked",
+                "public park litter",
+                "clogged storm drain",
+                "damaged railing",
+                "graffiti",
+                "street light out",
+            ],
         }
 
         # Base Urgency Levels
@@ -66,21 +108,37 @@ class InfrastructureNLPClassifier:
             "WATER": 70.0,
             "INTERNET": 50.0,
             "PUBLIC_INFRASTRUCTURE": 35.0,
-            "GENERAL": 20.0
+            "GENERAL": 20.0,
         }
 
         # Modifiers that worsen sentiment and increase urgency
         self.negative_lexicon = {
-            "terrible": 0.10, "worst": 0.15, "awful": 0.10, "catastrophic": 0.20,
-            "emergency": 0.20, "stuck": 0.08, "broken": 0.08, "angry": 0.05,
-            "danger": 0.15, "hazard": 0.12, "annoyed": 0.05, "urgent": 0.15,
-            "helpless": 0.08, "unsafe": 0.15
+            "terrible": 0.10,
+            "worst": 0.15,
+            "awful": 0.10,
+            "catastrophic": 0.20,
+            "emergency": 0.20,
+            "stuck": 0.08,
+            "broken": 0.08,
+            "angry": 0.05,
+            "danger": 0.15,
+            "hazard": 0.12,
+            "annoyed": 0.05,
+            "urgent": 0.15,
+            "helpless": 0.08,
+            "unsafe": 0.15,
         }
 
         # Modifiers that improve sentiment and decrease severity
         self.positive_lexicon = {
-            "resolved": 0.30, "fixed": 0.25, "restored": 0.30, "better": 0.15,
-            "thankfully": 0.20, "cleared": 0.20, "solved": 0.25, "working": 0.15
+            "resolved": 0.30,
+            "fixed": 0.25,
+            "restored": 0.30,
+            "better": 0.15,
+            "thankfully": 0.20,
+            "cleared": 0.20,
+            "solved": 0.25,
+            "working": 0.15,
         }
 
     def classify(self, text: str) -> Dict[str, Any]:
@@ -150,7 +208,7 @@ class InfrastructureNLPClassifier:
         # Punctuation/Capitalization indicators
         if "!" in text:
             urgency += 5.0
-        
+
         # Check if > 30% of characters are uppercase (excluding spaces/numbers)
         alpha_chars = [c for c in text if c.isalpha()]
         if alpha_chars:
@@ -169,15 +227,23 @@ class InfrastructureNLPClassifier:
         # 5. Rationale Generation (Explainability)
         explanation_parts = []
         if matched_category != "GENERAL":
-            explanation_parts.append(f"Classified under {matched_category} due to pattern '{matched_trigger}'.")
+            explanation_parts.append(
+                f"Classified under {matched_category} due to pattern '{matched_trigger}'."
+            )
         else:
-            explanation_parts.append("Classified under GENERAL due to no specific infrastructure pattern matching.")
+            explanation_parts.append(
+                "Classified under GENERAL due to no specific infrastructure pattern matching."
+            )
 
         if negatives_found:
-            explanation_parts.append(f"Sentiment reduced to {sentiment} by negative words {negatives_found}.")
+            explanation_parts.append(
+                f"Sentiment reduced to {sentiment} by negative words {negatives_found}."
+            )
         if positives_found:
-            explanation_parts.append(f"Sentiment improved to {sentiment} by positive/resolution keywords {positives_found}.")
-        
+            explanation_parts.append(
+                f"Sentiment improved to {sentiment} by positive/resolution keywords {positives_found}."
+            )
+
         explanation_parts.append(
             f"Urgency scored at {urgency}/100 (base: {base_urgency}, "
             f"sentiment adjustment: +{sentiment_booster:.1f}, "
@@ -198,7 +264,7 @@ class InfrastructureNLPClassifier:
             "severity": severity,
             "urgency_score": urgency,
             "keywords": ", ".join(unique_kws) if unique_kws else matched_trigger,
-            "explanation": explanation[:500]  # Cap at database length
+            "explanation": explanation[:500],  # Cap at database length
         }
 
 
@@ -209,7 +275,9 @@ class ComplaintClusteringEngine:
     """
 
     @staticmethod
-    def cluster_complaints(complaints: List[Dict[str, Any]], n_clusters: int = 3) -> List[Dict[str, Any]]:
+    def cluster_complaints(
+        complaints: List[Dict[str, Any]], n_clusters: int = 3
+    ) -> List[Dict[str, Any]]:
         """
         Dynamically group complaints, returning the enriched list with cluster_tag values
         along with summary info about the clusters.
@@ -219,7 +287,9 @@ class ComplaintClusteringEngine:
 
         # If scikit-learn is missing or too few complaints, assign default clusters
         if not _SKLEARN_AVAILABLE or len(complaints) < 3:
-            logger.info("Skipping K-Means clustering (scikit-learn missing or insufficient complaints).")
+            logger.info(
+                "Skipping K-Means clustering (scikit-learn missing or insufficient complaints)."
+            )
             for c in complaints:
                 # Assign default category-based cluster tags
                 cat = c.get("category", "GENERAL").upper()
@@ -251,7 +321,11 @@ class ComplaintClusteringEngine:
                 # Compute mean centroid or top terms in this cluster
                 cluster_centroid = kmeans.cluster_centers_[cluster_idx]
                 top_term_indices = cluster_centroid.argsort()[::-1][:3]
-                top_terms = [feature_names[idx] for idx in top_term_indices if cluster_centroid[idx] > 0.01]
+                top_terms = [
+                    feature_names[idx]
+                    for idx in top_term_indices
+                    if cluster_centroid[idx] > 0.01
+                ]
 
                 # Generate descriptive label
                 if not top_terms:
@@ -267,7 +341,9 @@ class ComplaintClusteringEngine:
             return complaints
 
         except Exception as e:
-            logger.error(f"Unsupervised clustering failed: {e}. Using category tag fallbacks.")
+            logger.error(
+                f"Unsupervised clustering failed: {e}. Using category tag fallbacks."
+            )
             for c in complaints:
                 cat = c.get("category", "GENERAL").upper()
                 c["cluster_tag"] = f"{cat} Cluster"

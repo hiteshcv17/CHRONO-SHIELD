@@ -5,11 +5,13 @@ from datetime import datetime
 import json
 from typing import Any, Dict
 
+
 class StructuredJsonFormatter(logging.Formatter):
     """
     Format logs as JSON lines for Loki / ELK log aggregations,
     supporting runtime Correlation IDs and trace properties.
     """
+
     def __init__(self, service_name: str = "chronoshield-ai-engine"):
         super().__init__()
         self.service_name = service_name
@@ -24,7 +26,7 @@ class StructuredJsonFormatter(logging.Formatter):
             "filename": record.filename,
             "line_number": record.lineno,
             "process": record.process,
-            "thread": record.threadName
+            "thread": record.threadName,
         }
 
         # Inject Request Correlation Context if present
@@ -65,10 +67,10 @@ def setup_logging(log_level: str = "INFO", logs_dir: str = "./logs") -> None:
         os.makedirs(logs_dir, exist_ok=True)
         file_path = os.path.join(logs_dir, "ai-engine.log")
         file_handler = logging.FileHandler(file_path, encoding="utf-8")
-        
+
         file_format = logging.Formatter(
             "[%(asctime)s] [%(levelname)s] [%(name)s:%(lineno)d] [Trace:%(correlation_id)s] - %(message)s",
-            defaults={"correlation_id": "SYS"}
+            defaults={"correlation_id": "SYS"},
         )
         file_handler.setFormatter(file_format)
         file_handler.setLevel(numeric_level)

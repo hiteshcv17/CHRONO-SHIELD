@@ -11,6 +11,7 @@ from app.services.asset_service import AssetService
 
 client = TestClient(app)
 
+
 class TestAssetAPI:
     @pytest.fixture(autouse=True)
     def setup_overrides(self):
@@ -22,7 +23,7 @@ class TestAssetAPI:
             username="mockanalyst1",
             email="analyst1@chronoshield.ai",
             role="ANALYST",
-            is_active=True
+            is_active=True,
         )
         app.dependency_overrides[get_current_user] = lambda: self.mock_user
         yield
@@ -58,7 +59,7 @@ class TestAssetAPI:
             "asset_type": "TRANSFORMER",
             "status": "NOMINAL",
             "region": "East Sector",
-            "dynamic_metadata": {"capacity_kva": 1500, "phase": 3}
+            "dynamic_metadata": {"capacity_kva": 1500, "phase": 3},
         }
         response = client.post("/api/v1/assets", json=payload)
         assert response.status_code == status.HTTP_201_CREATED
@@ -75,7 +76,10 @@ class TestAssetAPI:
         payload = {
             "name": "Updated Asset Name",
             "status": "MAINTENANCE",
-            "dynamic_metadata": {"repaired": True, "notes": "annual inspection completed"}
+            "dynamic_metadata": {
+                "repaired": True,
+                "notes": "annual inspection completed",
+            },
         }
         response = client.put(f"/api/v1/assets/{target_id}", json=payload)
         assert response.status_code == status.HTTP_200_OK
@@ -101,7 +105,7 @@ class TestAssetAPI:
             username="mockadmin1",
             email="admin1@chronoshield.ai",
             role="ADMIN",
-            is_active=True
+            is_active=True,
         )
         app.dependency_overrides[get_current_user] = lambda: admin_user
 
@@ -119,7 +123,7 @@ class TestAssetAPI:
             username="mockviewer1",
             email="viewer1@chronoshield.ai",
             role="VIEWER",
-            is_active=True
+            is_active=True,
         )
         app.dependency_overrides[get_current_user] = lambda: viewer_user
 
@@ -130,8 +134,17 @@ class TestAssetAPI:
         payload = {
             "name": "Viewer Post Test",
             "asset_type": "PUBLIC_SYSTEM",
-            "region": "Central Hub"
+            "region": "Central Hub",
         }
-        assert client.post("/api/v1/assets", json=payload).status_code == status.HTTP_403_FORBIDDEN
-        assert client.put("/api/v1/assets/ast-tf01", json=payload).status_code == status.HTTP_403_FORBIDDEN
-        assert client.delete("/api/v1/assets/ast-tf01").status_code == status.HTTP_403_FORBIDDEN
+        assert (
+            client.post("/api/v1/assets", json=payload).status_code
+            == status.HTTP_403_FORBIDDEN
+        )
+        assert (
+            client.put("/api/v1/assets/ast-tf01", json=payload).status_code
+            == status.HTTP_403_FORBIDDEN
+        )
+        assert (
+            client.delete("/api/v1/assets/ast-tf01").status_code
+            == status.HTTP_403_FORBIDDEN
+        )

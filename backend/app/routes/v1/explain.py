@@ -30,7 +30,9 @@ class BatchExplainRequest(BaseModel):
     anomalies: List[AnomalyExplainRequest]
 
 
-@router.post("/anomaly", response_model=AnomalyExplanation, status_code=status.HTTP_200_OK)
+@router.post(
+    "/anomaly", response_model=AnomalyExplanation, status_code=status.HTTP_200_OK
+)
 @cache_response(ttl=CacheTTL.EXPLAIN.value, prefix="explain")
 async def explain_anomaly(req: AnomalyExplainRequest):
     """
@@ -51,7 +53,9 @@ async def explain_anomaly(req: AnomalyExplainRequest):
     )
 
 
-@router.post("/batch", response_model=ExplainBatchResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/batch", response_model=ExplainBatchResponse, status_code=status.HTTP_200_OK
+)
 @cache_response(ttl=CacheTTL.EXPLAIN.value, prefix="explain")
 async def explain_batch(req: BatchExplainRequest):
     """
@@ -61,7 +65,9 @@ async def explain_batch(req: BatchExplainRequest):
     return ExplainService.explain_batch([a.model_dump() for a in req.anomalies])
 
 
-@router.get("/preview", response_model=AnomalyExplanation, status_code=status.HTTP_200_OK)
+@router.get(
+    "/preview", response_model=AnomalyExplanation, status_code=status.HTTP_200_OK
+)
 @cache_response(ttl=CacheTTL.EXPLAIN.value, prefix="explain")
 async def explain_preview(
     metric: str = Query("power_outage", description="Metric name to preview"),
@@ -75,6 +81,7 @@ async def explain_preview(
     Useful for frontend development and testing.
     """
     from datetime import datetime
+
     return ExplainService.explain_anomaly(
         anomaly_id="PREVIEW-001",
         metric_name=metric,

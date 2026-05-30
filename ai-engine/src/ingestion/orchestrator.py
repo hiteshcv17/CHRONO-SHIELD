@@ -25,10 +25,10 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 # Trigger self-registration of all source stubs via decorator
-import src.ingestion.sources.weather   # noqa: F401
-import src.ingestion.sources.traffic   # noqa: F401
-import src.ingestion.sources.energy    # noqa: F401
-import src.ingestion.sources.social    # noqa: F401
+import src.ingestion.sources.weather  # noqa: F401
+import src.ingestion.sources.traffic  # noqa: F401
+import src.ingestion.sources.energy  # noqa: F401
+import src.ingestion.sources.social  # noqa: F401
 
 from src.ingestion.base import BaseDataSource, HealthState, SourceHealthStatus
 from src.ingestion.config_manager import ConfigManager, SourceConfig
@@ -41,6 +41,7 @@ logger = logging.getLogger("ingestion.orchestrator")
 # ==============================================================================
 # Runtime Source Record
 # ==============================================================================
+
 
 class SourceRecord:
     """Holds runtime state of a single ingested source."""
@@ -63,6 +64,7 @@ class SourceRecord:
 # ==============================================================================
 # Orchestrator
 # ==============================================================================
+
 
 class IngestionOrchestrator:
     """
@@ -114,11 +116,13 @@ class IngestionOrchestrator:
                 sources_for_scheduler.append(instance)
             else:
                 reason = (
-                    "not registered in registry" if instance is None
-                    else "disabled" if not cfg.enabled
-                    else "failed validation"
+                    "not registered in registry"
+                    if instance is None
+                    else "disabled" if not cfg.enabled else "failed validation"
                 )
-                logger.info(f"Skipping scheduler registration for '{cfg.name}': {reason}")
+                logger.info(
+                    f"Skipping scheduler registration for '{cfg.name}': {reason}"
+                )
 
         self._scheduler.add_sources(sources_for_scheduler)
         logger.info(
@@ -149,7 +153,9 @@ class IngestionOrchestrator:
             "started_at": self._started_at.isoformat() if self._started_at else None,
             "scheduler_running": self._scheduler.is_running,
             "total_sources": len(self._records),
-            "enabled_sources": sum(1 for r in self._records.values() if r.config.enabled),
+            "enabled_sources": sum(
+                1 for r in self._records.values() if r.config.enabled
+            ),
             "scheduler_jobs": self._scheduler.get_jobs(),
             "sources": [
                 {
@@ -175,19 +181,23 @@ class IngestionOrchestrator:
         print("  🛡  ChronoShield AI — Ingestion Orchestrator Status")
         print("═" * width)
         print(f"  Started at    : {status['started_at'] or 'Not started'}")
-        print(f"  Scheduler     : {'▶ RUNNING' if status['scheduler_running'] else '◼ STOPPED'}")
+        print(
+            f"  Scheduler     : {'▶ RUNNING' if status['scheduler_running'] else '◼ STOPPED'}"
+        )
         print(f"  Total sources : {status['total_sources']}")
         print(f"  Enabled       : {status['enabled_sources']}")
         print("─" * width)
-        print(f"  {'SOURCE':<12} {'ENABLED':<9} {'REGISTERED':<12} {'VALID':<8} {'INTERVAL':<12} {'KEY SET'}")
+        print(
+            f"  {'SOURCE':<12} {'ENABLED':<9} {'REGISTERED':<12} {'VALID':<8} {'INTERVAL':<12} {'KEY SET'}"
+        )
         print("─" * width)
 
         for src in status["sources"]:
-            enabled    = "✓ Yes" if src["enabled"]    else "✗ No"
+            enabled = "✓ Yes" if src["enabled"] else "✗ No"
             registered = "✓ Yes" if src["registered"] else "✗ No"
-            valid      = "✓ Yes" if src["valid"]      else "✗ No"
-            key_set    = "✓ Yes" if src["api_key_set"] else "✗ No (env)"
-            interval   = f"{src['interval_seconds']}s"
+            valid = "✓ Yes" if src["valid"] else "✗ No"
+            key_set = "✓ Yes" if src["api_key_set"] else "✗ No (env)"
+            interval = f"{src['interval_seconds']}s"
 
             print(
                 f"  {src['name']:<12} {enabled:<9} {registered:<12} "
@@ -206,6 +216,7 @@ class IngestionOrchestrator:
 # ==============================================================================
 # Standalone smoke-test entry point
 # ==============================================================================
+
 
 async def _main() -> None:
     logging.basicConfig(

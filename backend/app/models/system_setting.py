@@ -7,6 +7,7 @@ class SystemSetting(Base):
     SQLAlchemy model representing dynamic system configurations.
     Used for storing toggles and flags (e.g. rate_limiting_enabled).
     """
+
     __tablename__ = "system_settings"
 
     key = Column(String(50), primary_key=True, index=True)

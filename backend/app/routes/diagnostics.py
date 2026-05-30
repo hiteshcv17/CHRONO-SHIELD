@@ -1,6 +1,7 @@
 import time
 import os
 import logging
+
 try:
     import psutil
 except ImportError:
@@ -8,7 +9,12 @@ except ImportError:
 import threading
 from fastapi import APIRouter, status
 from app.configs.settings import settings
-from app.schemas.diagnostics import HealthResponse, StatusResponse, VersionResponse, DependencyStatus
+from app.schemas.diagnostics import (
+    HealthResponse,
+    StatusResponse,
+    VersionResponse,
+    DependencyStatus,
+)
 from app.db.session import engine, redis_client
 
 router = APIRouter()
@@ -23,7 +29,7 @@ async def get_health() -> HealthResponse:
     return HealthResponse(
         status="healthy",
         service=settings.PROJECT_NAME,
-        environment=settings.ENVIRONMENT
+        environment=settings.ENVIRONMENT,
     )
 
 
@@ -37,6 +43,7 @@ async def get_status() -> StatusResponse:
 
     # 1. Database Health Check
     from sqlalchemy import text
+
     pg_start = time.time()
     pg_connected = False
     try:
@@ -46,10 +53,14 @@ async def get_status() -> StatusResponse:
     except Exception as e:
         logger.error(f"Database connection ping failed: {e}")
         aggregated_status = "degraded"
-    
+
     pg_latency = (time.time() - pg_start) * 1000
     dependencies.append(
-        DependencyStatus(name="Database Connection", connected=pg_connected, latency_ms=round(pg_latency, 2))
+        DependencyStatus(
+            name="Database Connection",
+            connected=pg_connected,
+            latency_ms=round(pg_latency, 2),
+        )
     )
 
     # 2. Redis Stream Check
@@ -64,7 +75,11 @@ async def get_status() -> StatusResponse:
 
     redis_latency = (time.time() - redis_start) * 1000
     dependencies.append(
-        DependencyStatus(name="Redis Cache Stream", connected=redis_connected, latency_ms=round(redis_latency, 2))
+        DependencyStatus(
+            name="Redis Cache Stream",
+            connected=redis_connected,
+            latency_ms=round(redis_latency, 2),
+        )
     )
 
     # Compile system metrics dynamically using psutil
@@ -96,13 +111,13 @@ async def get_status() -> StatusResponse:
     system_metrics = {
         "load_average_1m": round(load_1m, 2),
         "memory_allocated_pct": round(mem_pct, 1),
-        "active_threads_count": threads
+        "active_threads_count": threads,
     }
 
     return StatusResponse(
         status=aggregated_status,
         dependencies=dependencies,
-        system_metrics=system_metrics
+        system_metrics=system_metrics,
     )
 
 
@@ -114,5 +129,5 @@ async def get_version() -> VersionResponse:
     return VersionResponse(
         service=settings.PROJECT_NAME,
         version=settings.VERSION,
-        api_v1_prefix=settings.API_V1_STR
+        api_v1_prefix=settings.API_V1_STR,
     )

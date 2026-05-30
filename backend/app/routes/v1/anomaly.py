@@ -12,14 +12,29 @@ from app.utils.constants import CacheTTL, PaginationDefaults
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
-@router.get("/", response_model=PaginatedResponse[AnomalyResponse], status_code=status.HTTP_200_OK)
+@router.get(
+    "/",
+    response_model=PaginatedResponse[AnomalyResponse],
+    status_code=status.HTTP_200_OK,
+)
 @cache_response(ttl=CacheTTL.ANOMALIES.value, prefix="anomalies")
 async def fetch_anomalies(
-    metric: Optional[str] = Query(None, max_length=100, description="Filter incidents by metric label (e.g. CPU_Usage)"),
-    severity: Optional[str] = Query(None, description="Filter incidents by severity (CRITICAL, WARNING)"),
+    metric: Optional[str] = Query(
+        None,
+        max_length=100,
+        description="Filter incidents by metric label (e.g. CPU_Usage)",
+    ),
+    severity: Optional[str] = Query(
+        None, description="Filter incidents by severity (CRITICAL, WARNING)"
+    ),
     page: int = Query(PaginationDefaults.PAGE.value, ge=1, description="Page number"),
-    page_size: int = Query(PaginationDefaults.PAGE_SIZE.value, ge=1, le=PaginationDefaults.MAX_PAGE_SIZE.value, description="Records per page"),
-    db: AsyncSession = Depends(get_db_session)
+    page_size: int = Query(
+        PaginationDefaults.PAGE_SIZE.value,
+        ge=1,
+        le=PaginationDefaults.MAX_PAGE_SIZE.value,
+        description="Records per page",
+    ),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PaginatedResponse[AnomalyResponse]:
     """
     Query historical temporal anomalies matching specific filter thresholds with pagination.
@@ -28,13 +43,18 @@ async def fetch_anomalies(
         db, metric=metric, severity=severity, page=page, page_size=page_size
     )
     items = [AnomalyResponse.model_validate(r) for r in records]
-    return PaginatedResponse.build(items=items, total=total, page=page, page_size=page_size)
+    return PaginatedResponse.build(
+        items=items, total=total, page=page, page_size=page_size
+    )
 
 
-@router.post("/", response_model=ApiResponse[AnomalyResponse], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=ApiResponse[AnomalyResponse],
+    status_code=status.HTTP_201_CREATED,
+)
 async def register_anomaly(
-    payload: AnomalyCreate,
-    db: AsyncSession = Depends(get_db_session)
+    payload: AnomalyCreate, db: AsyncSession = Depends(get_db_session)
 ) -> ApiResponse[AnomalyResponse]:
     """
     Inject or record a newly flagged anomaly from automated ML pipelines.
@@ -46,11 +66,13 @@ async def register_anomaly(
     return ApiResponse.ok(res)
 
 
-@router.put("/{anomaly_id}", response_model=ApiResponse[AnomalyResponse], status_code=status.HTTP_200_OK)
+@router.put(
+    "/{anomaly_id}",
+    response_model=ApiResponse[AnomalyResponse],
+    status_code=status.HTTP_200_OK,
+)
 async def update_anomaly_status(
-    anomaly_id: str,
-    payload: AnomalyUpdate,
-    db: AsyncSession = Depends(get_db_session)
+    anomaly_id: str, payload: AnomalyUpdate, db: AsyncSession = Depends(get_db_session)
 ) -> ApiResponse[AnomalyResponse]:
     """
     Acknowledge or mitigate a specific incident alert.

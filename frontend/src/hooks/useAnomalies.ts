@@ -102,7 +102,6 @@ export function useAnomalies(params?: AnomalyQueryParams): UseAnomaliesResult {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey]);
 
   useEffect(() => {

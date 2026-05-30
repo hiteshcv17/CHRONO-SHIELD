@@ -5,6 +5,7 @@ Covers: app/core/metrics.py (all four functions + edge cases),
         app/core/registry.py (lookup, registration, error handling),
         app/core/base.py (ApiResponse, PaginatedResponse factories).
 """
+
 import math
 import pytest
 import numpy as np
@@ -14,7 +15,10 @@ from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.core import metrics as m
 from app.core.pipeline import (
-    ForecastingPipeline, ProphetPipeline, ArimaPipeline, EtsPipeline
+    ForecastingPipeline,
+    ProphetPipeline,
+    ArimaPipeline,
+    EtsPipeline,
 )
 from app.core.registry import PipelineRegistry
 from app.core.base import ApiResponse, PaginatedResponse, ErrorDetail
@@ -231,8 +235,12 @@ class TestRegistry:
     def test_custom_register(self):
         class DummyPipeline(ForecastingPipeline):
             name = "DummyTest"
-            def _fit_impl(self, train): pass
-            def _predict_impl(self, horizon): return np.zeros(horizon)
+
+            def _fit_impl(self, train):
+                pass
+
+            def _predict_impl(self, horizon):
+                return np.zeros(horizon)
 
         PipelineRegistry.register("DummyTest", DummyPipeline)
         pipe = PipelineRegistry.get("DummyTest")
@@ -304,27 +312,36 @@ class TestPlatformHealth:
 
     def test_health_endpoint_accessible(self):
         async def _a():
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/api/v1/platform/health")
                 assert resp.status_code == 200
                 data = resp.json()
                 assert "status" in data
                 assert "version" in data
                 assert "services" in data
+
         _run(_a())
 
     def test_health_returns_version(self):
         async def _a():
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/api/v1/platform/health")
                 data = resp.json()
                 assert len(data["version"]) > 0
+
         _run(_a())
 
     def test_health_uptime_positive(self):
         async def _a():
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
                 resp = await client.get("/api/v1/platform/health")
                 data = resp.json()
                 assert data.get("uptime_seconds", -1) >= 0
+
         _run(_a())

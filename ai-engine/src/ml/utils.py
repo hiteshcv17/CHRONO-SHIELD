@@ -17,6 +17,7 @@ from typing import Dict, List, Tuple
 # Feature Extraction
 # ---------------------------------------------------------------------------
 
+
 def rolling_stats(series: pd.Series, window: int) -> Tuple[pd.Series, pd.Series]:
     """Return rolling mean and std for a pandas Series.
 
@@ -63,32 +64,42 @@ def extract_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.dropna().reset_index(drop=True)
     return df
 
+
 # ---------------------------------------------------------------------------
 # Synthetic Anomaly Injection
 # ---------------------------------------------------------------------------
 
-def _inject_spike(series: pd.Series, magnitude: float, prob: float, rng: np.random.Generator) -> pd.Series:
+
+def _inject_spike(
+    series: pd.Series, magnitude: float, prob: float, rng: np.random.Generator
+) -> pd.Series:
     mask = rng.random(len(series)) < prob
     spike = rng.normal(loc=magnitude, scale=0.1 * magnitude, size=mask.sum())
     series.loc[mask] += spike
     return series
 
 
-def _inject_drop(series: pd.Series, magnitude: float, prob: float, rng: np.random.Generator) -> pd.Series:
+def _inject_drop(
+    series: pd.Series, magnitude: float, prob: float, rng: np.random.Generator
+) -> pd.Series:
     mask = rng.random(len(series)) < prob
     drop = rng.normal(loc=-magnitude, scale=0.1 * magnitude, size=mask.sum())
     series.loc[mask] += drop
     return series
 
 
-def _inject_noise(series: pd.Series, scale: float, prob: float, rng: np.random.Generator) -> pd.Series:
+def _inject_noise(
+    series: pd.Series, scale: float, prob: float, rng: np.random.Generator
+) -> pd.Series:
     mask = rng.random(len(series)) < prob
     noise = rng.normal(loc=0.0, scale=scale, size=mask.sum())
     series.loc[mask] += noise
     return series
 
 
-def _inject_missing(series: pd.Series, prob: float, rng: np.random.Generator) -> pd.Series:
+def _inject_missing(
+    series: pd.Series, prob: float, rng: np.random.Generator
+) -> pd.Series:
     mask = rng.random(len(series)) < prob
     series.loc[mask] = np.nan
     return series
@@ -123,10 +134,14 @@ def inject_synthetic_anomalies(
     for typ, params in anomaly_config.items():
         for col in [c for c in df.columns if c != "timestamp"]:
             if typ == "spike":
-                df[col] = _inject_spike(df[col], params["magnitude"], params["prob"], rng)
+                df[col] = _inject_spike(
+                    df[col], params["magnitude"], params["prob"], rng
+                )
                 labels.loc[df[col] != df[col].shift()] = 1
             elif typ == "drop":
-                df[col] = _inject_drop(df[col], params["magnitude"], params["prob"], rng)
+                df[col] = _inject_drop(
+                    df[col], params["magnitude"], params["prob"], rng
+                )
                 labels.loc[df[col] != df[col].shift()] = 1
             elif typ == "noise":
                 df[col] = _inject_noise(df[col], params["scale"], params["prob"], rng)
@@ -139,5 +154,6 @@ def inject_synthetic_anomalies(
     # After injection, forward‑fill missing values for model compatibility
     df_filled = df.fillna(method="ffill").fillna(method="bfill")
     return df_filled, labels
+
 
 # End of utils.py

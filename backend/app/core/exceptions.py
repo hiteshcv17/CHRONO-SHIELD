@@ -15,6 +15,7 @@ class ErrorCode(str, Enum):
 
 class ChronoShieldError(Exception):
     """Base exception class for all ChronoShield operational errors."""
+
     pass
 
 
@@ -23,6 +24,7 @@ class AppHTTPException(HTTPException):
     Subclass of FastAPI's HTTPException that carries a machine-readable ErrorCode
     and maps seamlessly to the ApiResponse error envelope.
     """
+
     def __init__(
         self,
         error_code: ErrorCode,

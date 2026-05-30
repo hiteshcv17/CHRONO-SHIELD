@@ -35,18 +35,22 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.utcnow() + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
 
     to_encode = {
         "exp": expire,
         "sub": str(subject),
         "type": "access",
-        "iat": datetime.utcnow()
+        "iat": datetime.utcnow(),
     }
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
+def create_refresh_token(
+    subject: str, expires_delta: Optional[timedelta] = None
+) -> str:
     """
     Create a signed JWT refresh token with unique identifier (jti) for session tracking.
     """
@@ -60,7 +64,7 @@ def create_refresh_token(subject: str, expires_delta: Optional[timedelta] = None
         "sub": str(subject),
         "jti": uuid.uuid4().hex,
         "type": "refresh",
-        "iat": datetime.utcnow()
+        "iat": datetime.utcnow(),
     }
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
@@ -71,6 +75,8 @@ def decode_token(token: str) -> dict:
     Returns empty dict on validation failure.
     """
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        return jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
     except jwt.PyJWTError:
         return {}

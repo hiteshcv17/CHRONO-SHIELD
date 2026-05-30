@@ -3,6 +3,7 @@ tests/test_metrics.py
 
 Unit tests for Prometheus metrics and /metrics endpoint.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock, MagicMock
@@ -12,58 +13,76 @@ from unittest.mock import patch, AsyncMock, MagicMock
 # Prometheus utility tests
 # ==============================================================================
 
+
 class TestPrometheusUtilities:
     """Test Prometheus metric declarations."""
 
     def test_http_request_count_counter(self):
         from app.utils.prometheus import HTTP_REQUEST_COUNT
         from prometheus_client import Counter
+
         assert isinstance(HTTP_REQUEST_COUNT, Counter)
 
     def test_http_request_latency_histogram(self):
         from app.utils.prometheus import HTTP_REQUEST_LATENCY
         from prometheus_client import Histogram
+
         assert isinstance(HTTP_REQUEST_LATENCY, Histogram)
 
     def test_active_alerts_gauge(self):
         from app.utils.prometheus import ACTIVE_ALERTS
         from prometheus_client import Gauge
+
         assert isinstance(ACTIVE_ALERTS, Gauge)
 
     def test_cache_operations_counter(self):
         from app.utils.prometheus import CACHE_OPERATIONS
         from prometheus_client import Counter
+
         assert isinstance(CACHE_OPERATIONS, Counter)
 
     def test_http_request_count_can_increment(self):
         from app.utils.prometheus import HTTP_REQUEST_COUNT
+
         HTTP_REQUEST_COUNT.labels(method="GET", endpoint="/test", status=200).inc()
         # No assertion beyond no exception raised
 
     def test_http_request_latency_can_observe(self):
         from app.utils.prometheus import HTTP_REQUEST_LATENCY
+
         HTTP_REQUEST_LATENCY.labels(method="GET", endpoint="/test").observe(0.05)
 
     def test_active_alerts_gauge_can_be_set(self):
         from app.utils.prometheus import ACTIVE_ALERTS
+
         ACTIVE_ALERTS.labels(severity="HIGH", status="ACTIVE").set(5)
 
     def test_cache_operations_hit_increment(self):
         from app.utils.prometheus import CACHE_OPERATIONS
-        CACHE_OPERATIONS.labels(prefix="api_cache", operation="read", status="hit").inc()
+
+        CACHE_OPERATIONS.labels(
+            prefix="api_cache", operation="read", status="hit"
+        ).inc()
 
     def test_cache_operations_miss_increment(self):
         from app.utils.prometheus import CACHE_OPERATIONS
-        CACHE_OPERATIONS.labels(prefix="api_cache", operation="read", status="miss").inc()
+
+        CACHE_OPERATIONS.labels(
+            prefix="api_cache", operation="read", status="miss"
+        ).inc()
 
     def test_cache_operations_write_increment(self):
         from app.utils.prometheus import CACHE_OPERATIONS
-        CACHE_OPERATIONS.labels(prefix="api_cache", operation="write", status="success").inc()
+
+        CACHE_OPERATIONS.labels(
+            prefix="api_cache", operation="write", status="success"
+        ).inc()
 
 
 # ==============================================================================
 # /metrics endpoint tests
 # ==============================================================================
+
 
 @pytest.fixture
 def mock_app_client():

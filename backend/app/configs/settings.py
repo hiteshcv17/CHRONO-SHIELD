@@ -15,10 +15,7 @@ def parse_cors_origins(v: Any) -> Union[List[str], str]:
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=True,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )
 
     # --- Core Settings ---
@@ -31,7 +28,7 @@ class Settings(BaseSettings):
     BACKEND_HOST: str = "0.0.0.0"
     BACKEND_PORT: int = 8000
     BACKEND_LOG_LEVEL: str = "info"
-    
+
     # --- Security & JWT ---
     SECRET_KEY: str = "default_placeholder_secret_key_please_change"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
@@ -86,7 +83,7 @@ class Settings(BaseSettings):
         port = data.get("REDIS_PORT", 6379)
         password = data.get("REDIS_PASSWORD", "")
         db = data.get("REDIS_DB", 0)
-        
+
         if password:
             return f"redis://:{password}@{host}:{port}/{db}"
         return f"redis://{host}:{port}/{db}"
@@ -99,8 +96,13 @@ class Settings(BaseSettings):
     @classmethod
     def validate_secret_key(cls, v: str, values: Any) -> str:
         env = values.data.get("ENVIRONMENT", "development")
-        if env.lower() == "production" and v == "default_placeholder_secret_key_please_change":
-            raise ValueError("SECRET_KEY must be changed from the default placeholder in production environments")
+        if (
+            env.lower() == "production"
+            and v == "default_placeholder_secret_key_please_change"
+        ):
+            raise ValueError(
+                "SECRET_KEY must be changed from the default placeholder in production environments"
+            )
         return v
 
 

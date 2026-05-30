@@ -19,33 +19,39 @@ _MOCK_CONFIGS_REGISTRY: List[NotificationChannelConfig] = [
     NotificationChannelConfig(
         id="cfg-email",
         channel_type="EMAIL",
-        config=json.dumps({
-            "recipient_email": "operator@chronoshield.ai",
-            "smtp_host": "localhost",
-            "smtp_port": 1025,
-            "allowed_severities": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-        }),
-        enabled=False
+        config=json.dumps(
+            {
+                "recipient_email": "operator@chronoshield.ai",
+                "smtp_host": "localhost",
+                "smtp_port": 1025,
+                "allowed_severities": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+            }
+        ),
+        enabled=False,
     ),
     NotificationChannelConfig(
         id="cfg-telegram",
         channel_type="TELEGRAM",
-        config=json.dumps({
-            "bot_token": "MOCK_TELEGRAM_TOKEN",
-            "chat_id": "MOCK_CHAT_ID",
-            "allowed_severities": ["HIGH", "CRITICAL"]
-        }),
-        enabled=False
+        config=json.dumps(
+            {
+                "bot_token": "MOCK_TELEGRAM_TOKEN",
+                "chat_id": "MOCK_CHAT_ID",
+                "allowed_severities": ["HIGH", "CRITICAL"],
+            }
+        ),
+        enabled=False,
     ),
     NotificationChannelConfig(
         id="cfg-webhook",
         channel_type="WEBHOOK",
-        config=json.dumps({
-            "webhook_url": "http://localhost:8000/api/v1/notifications/webhook-test",
-            "allowed_severities": ["MEDIUM", "HIGH", "CRITICAL"]
-        }),
-        enabled=False
-    )
+        config=json.dumps(
+            {
+                "webhook_url": "http://localhost:8000/api/v1/notifications/webhook-test",
+                "allowed_severities": ["MEDIUM", "HIGH", "CRITICAL"],
+            }
+        ),
+        enabled=False,
+    ),
 ]
 
 _MOCK_LOGS_REGISTRY: List[NotificationDeliveryLog] = []
@@ -115,7 +121,9 @@ class NotificationDeliveryService:
         return title, message
 
     @staticmethod
-    async def get_channels(db: Optional[AsyncSession]) -> List[NotificationChannelConfig]:
+    async def get_channels(
+        db: Optional[AsyncSession],
+    ) -> List[NotificationChannelConfig]:
         """Fetch all channel configurations."""
         if db:
             try:
@@ -125,7 +133,9 @@ class NotificationDeliveryService:
                 if configs:
                     return configs
             except Exception as e:
-                logger.error(f"PostgreSQL fetch configs failed: {e}. Falling back to in-memory configurations.")
+                logger.error(
+                    f"PostgreSQL fetch configs failed: {e}. Falling back to in-memory configurations."
+                )
         return _MOCK_CONFIGS_REGISTRY
 
     @staticmethod
@@ -133,13 +143,15 @@ class NotificationDeliveryService:
         db: Optional[AsyncSession],
         channel_type: str,
         config_str: Optional[str] = None,
-        enabled: Optional[bool] = None
+        enabled: Optional[bool] = None,
     ) -> NotificationChannelConfig:
         """Update a specific channel configuration."""
         target = None
         if db:
             try:
-                stmt = select(NotificationChannelConfig).where(NotificationChannelConfig.channel_type == channel_type.upper())
+                stmt = select(NotificationChannelConfig).where(
+                    NotificationChannelConfig.channel_type == channel_type.upper()
+                )
                 res = await db.execute(stmt)
                 target = res.scalar_one_or_none()
                 if target:
@@ -163,7 +175,7 @@ class NotificationDeliveryService:
                 if not target:
                     target = cfg
                 break
-        
+
         if not target:
             raise ValueError(f"Channel config '{channel_type}' not found.")
         return target
@@ -173,19 +185,21 @@ class NotificationDeliveryService:
         db: Optional[AsyncSession],
         alert: PrioritizedAlertRecord,
         status_override: Optional[str] = None,
-        background_tasks: Optional[Any] = None
+        background_tasks: Optional[Any] = None,
     ):
         """
         Checks active channels and dispatches notifications for non-suppressed alerts
         if their severity level matches channel criteria.
         """
         if alert.status == "SUPPRESSED":
-            logger.info(f"Skipping notification dispatch for suppressed alert: {alert.id}")
+            logger.info(
+                f"Skipping notification dispatch for suppressed alert: {alert.id}"
+            )
             return
 
         status = status_override or alert.status
         channels = await NotificationDeliveryService.get_channels(db)
-        
+
         logs_to_add = []
         mock_logs_to_add = []
         for ch in channels:
@@ -195,12 +209,18 @@ class NotificationDeliveryService:
             try:
                 cfg_data = json.loads(ch.config)
             except Exception as e:
-                logger.error(f"Failed to parse json config for channel {ch.channel_type}: {e}")
+                logger.error(
+                    f"Failed to parse json config for channel {ch.channel_type}: {e}"
+                )
                 continue
 
-            allowed_sevs = cfg_data.get("allowed_severities", ["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+            allowed_sevs = cfg_data.get(
+                "allowed_severities", ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+            )
             if alert.current_severity.upper() not in [s.upper() for s in allowed_sevs]:
-                logger.info(f"Alert {alert.id} severity '{alert.current_severity}' filtered out for channel {ch.channel_type}")
+                logger.info(
+                    f"Alert {alert.id} severity '{alert.current_severity}' filtered out for channel {ch.channel_type}"
+                )
                 continue
 
             # Determine recipient
@@ -227,7 +247,7 @@ class NotificationDeliveryService:
                 retry_count=0,
                 max_retries=3,
                 error_message=None,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
             if db:
@@ -251,9 +271,13 @@ class NotificationDeliveryService:
         all_logs = logs_to_add if db else mock_logs_to_add
         for entry in all_logs:
             if background_tasks:
-                background_tasks.add_task(NotificationDeliveryService.dispatch_log_task, entry.id)
+                background_tasks.add_task(
+                    NotificationDeliveryService.dispatch_log_task, entry.id
+                )
             else:
-                asyncio.create_task(NotificationDeliveryService.dispatch_log_task(entry.id))
+                asyncio.create_task(
+                    NotificationDeliveryService.dispatch_log_task(entry.id)
+                )
 
     @staticmethod
     async def trigger_test_notification(
@@ -261,7 +285,7 @@ class NotificationDeliveryService:
         channel_type: str,
         recipient: str,
         message: str,
-        background_tasks: Optional[Any] = None
+        background_tasks: Optional[Any] = None,
     ) -> NotificationDeliveryLog:
         """
         Manually trigger a test notification dispatch for debugging.
@@ -279,7 +303,7 @@ class NotificationDeliveryService:
             retry_count=0,
             max_retries=2,
             error_message=None,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         if db:
@@ -296,9 +320,13 @@ class NotificationDeliveryService:
 
         # Dispatch async background execution task
         if background_tasks:
-            background_tasks.add_task(NotificationDeliveryService.dispatch_log_task, log_entry.id)
+            background_tasks.add_task(
+                NotificationDeliveryService.dispatch_log_task, log_entry.id
+            )
         else:
-            asyncio.create_task(NotificationDeliveryService.dispatch_log_task(log_entry.id))
+            asyncio.create_task(
+                NotificationDeliveryService.dispatch_log_task(log_entry.id)
+            )
         return log_entry
 
     @staticmethod
@@ -310,7 +338,9 @@ class NotificationDeliveryService:
     async def _attempt_dispatch(log_id: str):
         """Performs HTTP client request and handles retries under exponential backoff."""
         async with async_session_factory() as session:
-            stmt = select(NotificationDeliveryLog).where(NotificationDeliveryLog.id == log_id)
+            stmt = select(NotificationDeliveryLog).where(
+                NotificationDeliveryLog.id == log_id
+            )
             res = await session.execute(stmt)
             log = res.scalar_one_or_none()
 
@@ -322,32 +352,46 @@ class NotificationDeliveryService:
                     log = mock_matches[0]
                     is_mock = True
                 else:
-                    logger.error(f"Notification log ID {log_id} not found in DB or mock store.")
+                    logger.error(
+                        f"Notification log ID {log_id} not found in DB or mock store."
+                    )
                     return
 
             try:
                 # 1. Dispatching to provider
                 if log.channel == "EMAIL":
-                    await NotificationDeliveryService._send_email(log.recipient, log.title, log.message)
+                    await NotificationDeliveryService._send_email(
+                        log.recipient, log.title, log.message
+                    )
                 elif log.channel == "TELEGRAM":
-                    await NotificationDeliveryService._send_telegram(log.recipient, log.title, log.message)
+                    await NotificationDeliveryService._send_telegram(
+                        log.recipient, log.title, log.message
+                    )
                 elif log.channel == "WEBHOOK":
-                    await NotificationDeliveryService._send_webhook(log.recipient, log.title, log.message)
+                    await NotificationDeliveryService._send_webhook(
+                        log.recipient, log.title, log.message
+                    )
 
                 log.status = "SENT"
                 log.sent_at = datetime.utcnow()
                 log.error_message = None
-                
+
             except Exception as e:
                 error_msg = str(e)
                 log.retry_count += 1
                 log.error_message = error_msg
-                logger.warning(f"Notification dispatch failed (attempt {log.retry_count}/{log.max_retries}) for log {log_id}: {error_msg}")
+                logger.warning(
+                    f"Notification dispatch failed (attempt {log.retry_count}/{log.max_retries}) for log {log_id}: {error_msg}"
+                )
 
                 if log.retry_count < log.max_retries:
                     # Retry with exponential backoff: factor * 2 ** retry_count
-                    delay = 1.0 * (2 ** log.retry_count) # e.g. 2s, 4s, 8s
-                    asyncio.create_task(NotificationDeliveryService._dispatch_retry_delayed(log_id, delay))
+                    delay = 1.0 * (2**log.retry_count)  # e.g. 2s, 4s, 8s
+                    asyncio.create_task(
+                        NotificationDeliveryService._dispatch_retry_delayed(
+                            log_id, delay
+                        )
+                    )
                 else:
                     log.status = "FAILED"
 
@@ -355,10 +399,14 @@ class NotificationDeliveryService:
                 try:
                     await session.commit()
                 except Exception as ce:
-                    logger.error(f"Failed to commit notification update for log {log_id}: {ce}")
+                    logger.error(
+                        f"Failed to commit notification update for log {log_id}: {ce}"
+                    )
             else:
                 # Mock update logs local output
-                logger.info(f"Mock Notification log updated. ID: {log.id}, Status: {log.status}, Retries: {log.retry_count}")
+                logger.info(
+                    f"Mock Notification log updated. ID: {log.id}, Status: {log.status}, Retries: {log.retry_count}"
+                )
 
     @staticmethod
     async def _dispatch_retry_delayed(log_id: str, delay: float):
@@ -372,20 +420,24 @@ class NotificationDeliveryService:
     @staticmethod
     async def _send_email(recipient: str, title: str, message: str):
         """Dispatches real SMTP/mail delivery using smtplib."""
-        logger.info(f"[TRANSPORT: EMAIL] Routing message to {recipient}. Subject: {title}")
-        
+        logger.info(
+            f"[TRANSPORT: EMAIL] Routing message to {recipient}. Subject: {title}"
+        )
+
         # 1. Fetch channel config to get SMTP settings
         from app.db.session import async_session_factory
         from app.models.notification import NotificationChannelConfig
-        
+
         smtp_host = "localhost"
         smtp_port = 1025
         smtp_username = None
         smtp_password = None
-        
+
         async with async_session_factory() as session:
             try:
-                stmt = select(NotificationChannelConfig).where(NotificationChannelConfig.channel_type == "EMAIL")
+                stmt = select(NotificationChannelConfig).where(
+                    NotificationChannelConfig.channel_type == "EMAIL"
+                )
                 res = await session.execute(stmt)
                 ch = res.scalar_one_or_none()
                 if not ch:
@@ -416,8 +468,14 @@ class NotificationDeliveryService:
                         break
 
         # If it is localhost/1025 and no credentials exist, bypass real SMTP execution to prevent hanging
-        if smtp_host in ("localhost", "127.0.0.1") and smtp_port == 1025 and not smtp_username:
-            logger.info(f"[TRANSPORT: EMAIL SIMULATION] Routed successfully to {recipient}")
+        if (
+            smtp_host in ("localhost", "127.0.0.1")
+            and smtp_port == 1025
+            and not smtp_username
+        ):
+            logger.info(
+                f"[TRANSPORT: EMAIL SIMULATION] Routed successfully to {recipient}"
+            )
             await asyncio.sleep(0.1)
             return
 
@@ -446,7 +504,9 @@ class NotificationDeliveryService:
                     server.starttls()
                     server.ehlo()
                 except Exception as te:
-                    logger.warning(f"STARTTLS negotiation failed or not supported by server: {te}")
+                    logger.warning(
+                        f"STARTTLS negotiation failed or not supported by server: {te}"
+                    )
 
             if smtp_username and smtp_password:
                 server.login(smtp_username, smtp_password)
@@ -474,7 +534,9 @@ class NotificationDeliveryService:
                 break
 
         if token == "MOCK_TOKEN" or not token:
-            logger.info(f"[TRANSPORT: TELEGRAM SIMULATION] ChatID: {chat_id}, Text: {title} - {message[:50]}...")
+            logger.info(
+                f"[TRANSPORT: TELEGRAM SIMULATION] ChatID: {chat_id}, Text: {title} - {message[:50]}..."
+            )
             await asyncio.sleep(0.1)
             return
 
@@ -483,17 +545,23 @@ class NotificationDeliveryService:
         payload = {
             "chat_id": chat_id,
             "text": f"*{title}*\n\n{message}",
-            "parse_mode": "Markdown"
+            "parse_mode": "Markdown",
         }
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post(url, json=payload)
             if resp.status_code != 200:
-                raise Exception(f"Telegram API responded with status {resp.status_code}: {resp.text}")
+                raise Exception(
+                    f"Telegram API responded with status {resp.status_code}: {resp.text}"
+                )
 
     @staticmethod
     async def _send_webhook(webhook_url: str, title: str, message: str):
         """Dispatches outbound HTTP POST containing structural JSON payloads."""
-        if "localhost" in webhook_url or "127.0.0.1" in webhook_url or "api/v1/notifications" in webhook_url:
+        if (
+            "localhost" in webhook_url
+            or "127.0.0.1" in webhook_url
+            or "api/v1/notifications" in webhook_url
+        ):
             # Bypass real network dispatch for test loop endpoint URLs
             logger.info(f"[TRANSPORT: WEBHOOK SIMULATION] Dispatched to {webhook_url}")
             await asyncio.sleep(0.1)
@@ -503,7 +571,7 @@ class NotificationDeliveryService:
             "title": title,
             "message": message,
             "timestamp": datetime.utcnow().isoformat(),
-            "source": "ChronoShield AI"
+            "source": "ChronoShield AI",
         }
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post(webhook_url, json=payload)
@@ -516,20 +584,24 @@ class NotificationDeliveryService:
         channel: Optional[str] = None,
         status: Optional[str] = None,
         alert_id: Optional[str] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[NotificationDeliveryLog]:
         """Fetch delivery audit log records."""
         if db:
             try:
                 stmt = select(NotificationDeliveryLog)
                 if channel:
-                    stmt = stmt.where(NotificationDeliveryLog.channel == channel.upper())
+                    stmt = stmt.where(
+                        NotificationDeliveryLog.channel == channel.upper()
+                    )
                 if status:
                     stmt = stmt.where(NotificationDeliveryLog.status == status.upper())
                 if alert_id:
                     stmt = stmt.where(NotificationDeliveryLog.alert_id == alert_id)
-                stmt = stmt.order_by(NotificationDeliveryLog.timestamp.desc()).limit(limit)
-                
+                stmt = stmt.order_by(NotificationDeliveryLog.timestamp.desc()).limit(
+                    limit
+                )
+
                 res = await db.execute(stmt)
                 records = list(res.scalars().all())
                 if records:
@@ -545,5 +617,5 @@ class NotificationDeliveryService:
             filtered = [x for x in filtered if x.status.upper() == status.upper()]
         if alert_id:
             filtered = [x for x in filtered if x.alert_id == alert_id]
-        
+
         return sorted(filtered, key=lambda x: x.timestamp, reverse=True)[:limit]

@@ -10,6 +10,7 @@ Architecture:
   4. Chain-of-thought      — generate ordered reasoning steps
   5. NL generation         — compose headline, summary, and causal narrative
 """
+
 import time
 import logging
 from datetime import datetime
@@ -22,59 +23,151 @@ logger = logging.getLogger("explain_service")
 # Each rule maps a (metric_keyword, context_condition) → causal explanation
 # ==============================================================================
 
+
 # Time-of-day windows
 def _time_context(hour: int) -> str:
-    if 7 <= hour < 9:   return "MORNING_RUSH"
-    if 9 <= hour < 11:  return "MID_MORNING"
-    if 11 <= hour < 14: return "MIDDAY_PEAK"
-    if 14 <= hour < 17: return "AFTERNOON_HEAT"
-    if 17 <= hour < 21: return "EVENING_SURGE"
-    if 21 <= hour < 24: return "LATE_NIGHT"
+    if 7 <= hour < 9:
+        return "MORNING_RUSH"
+    if 9 <= hour < 11:
+        return "MID_MORNING"
+    if 11 <= hour < 14:
+        return "MIDDAY_PEAK"
+    if 14 <= hour < 17:
+        return "AFTERNOON_HEAT"
+    if 17 <= hour < 21:
+        return "EVENING_SURGE"
+    if 21 <= hour < 24:
+        return "LATE_NIGHT"
     return "OVERNIGHT"
 
+
 _TIME_LABELS = {
-    "MORNING_RUSH":    "during the morning commute rush hour",
-    "MID_MORNING":     "during mid-morning operational peak",
-    "MIDDAY_PEAK":     "during the midday demand peak",
-    "AFTERNOON_HEAT":  "during the peak afternoon heat window",
-    "EVENING_SURGE":   "during the evening residential demand surge",
-    "LATE_NIGHT":      "during late-night low-activity hours",
-    "OVERNIGHT":       "during the overnight maintenance window",
+    "MORNING_RUSH": "during the morning commute rush hour",
+    "MID_MORNING": "during mid-morning operational peak",
+    "MIDDAY_PEAK": "during the midday demand peak",
+    "AFTERNOON_HEAT": "during the peak afternoon heat window",
+    "EVENING_SURGE": "during the evening residential demand surge",
+    "LATE_NIGHT": "during late-night low-activity hours",
+    "OVERNIGHT": "during the overnight maintenance window",
 }
 
 _CATEGORY_LABELS = {
-    "POWER":                 "power grid",
-    "TRAFFIC":               "road network",
-    "WATER":                 "water distribution",
-    "INTERNET":              "network infrastructure",
+    "POWER": "power grid",
+    "TRAFFIC": "road network",
+    "WATER": "water distribution",
+    "INTERNET": "network infrastructure",
     "PUBLIC_INFRASTRUCTURE": "civic infrastructure",
 }
 
 # Cross-domain correlation rules: which categories amplify each other
 _DOMAIN_CORRELATIONS: Dict[str, List[Dict[str, Any]]] = {
     "POWER": [
-        {"domain": "INTERNET",              "rel": "TRIGGERED",  "strength": 0.85, "lag": 3,  "desc": "power instability disrupts UPS systems and data center cooling, causing network degradation"},
-        {"domain": "TRAFFIC",              "rel": "AMPLIFIED",  "strength": 0.60, "lag": 5,  "desc": "traffic signal controllers lose backup power, creating intersection failures"},
-        {"domain": "PUBLIC_INFRASTRUCTURE","rel": "CORRELATED", "strength": 0.55, "lag": 8,  "desc": "street lighting and public systems depend on the same distribution feeders"},
-        {"domain": "WATER",                "rel": "CORRELATED", "strength": 0.45, "lag": 10, "desc": "water pumping stations require reliable power; voltage drops reduce pump efficiency"},
+        {
+            "domain": "INTERNET",
+            "rel": "TRIGGERED",
+            "strength": 0.85,
+            "lag": 3,
+            "desc": "power instability disrupts UPS systems and data center cooling, causing network degradation",
+        },
+        {
+            "domain": "TRAFFIC",
+            "rel": "AMPLIFIED",
+            "strength": 0.60,
+            "lag": 5,
+            "desc": "traffic signal controllers lose backup power, creating intersection failures",
+        },
+        {
+            "domain": "PUBLIC_INFRASTRUCTURE",
+            "rel": "CORRELATED",
+            "strength": 0.55,
+            "lag": 8,
+            "desc": "street lighting and public systems depend on the same distribution feeders",
+        },
+        {
+            "domain": "WATER",
+            "rel": "CORRELATED",
+            "strength": 0.45,
+            "lag": 10,
+            "desc": "water pumping stations require reliable power; voltage drops reduce pump efficiency",
+        },
     ],
     "TRAFFIC": [
-        {"domain": "PUBLIC_INFRASTRUCTURE","rel": "TRIGGERED",  "strength": 0.75, "lag": 2,  "desc": "collision events and road closures cascade into signal infrastructure failures"},
-        {"domain": "POWER",               "rel": "CORRELATED", "strength": 0.30, "lag": 0,  "desc": "emergency service demand during incidents increases local grid load"},
-        {"domain": "INTERNET",            "rel": "AMPLIFIED",  "strength": 0.40, "lag": 5,  "desc": "incident reporting generates bandwidth spikes on emergency communication networks"},
+        {
+            "domain": "PUBLIC_INFRASTRUCTURE",
+            "rel": "TRIGGERED",
+            "strength": 0.75,
+            "lag": 2,
+            "desc": "collision events and road closures cascade into signal infrastructure failures",
+        },
+        {
+            "domain": "POWER",
+            "rel": "CORRELATED",
+            "strength": 0.30,
+            "lag": 0,
+            "desc": "emergency service demand during incidents increases local grid load",
+        },
+        {
+            "domain": "INTERNET",
+            "rel": "AMPLIFIED",
+            "strength": 0.40,
+            "lag": 5,
+            "desc": "incident reporting generates bandwidth spikes on emergency communication networks",
+        },
     ],
     "WATER": [
-        {"domain": "TRAFFIC",             "rel": "TRIGGERED",  "strength": 0.80, "lag": 4,  "desc": "surface flooding from ruptures forces road closures and traffic diversions"},
-        {"domain": "PUBLIC_INFRASTRUCTURE","rel": "CORRELATED", "strength": 0.65, "lag": 6,  "desc": "pipe failures undermine road surface integrity, accelerating infrastructure degradation"},
-        {"domain": "INTERNET",            "rel": "CORRELATED", "strength": 0.25, "lag": 15, "desc": "underground duct flooding risks cable damage in shared utility corridors"},
+        {
+            "domain": "TRAFFIC",
+            "rel": "TRIGGERED",
+            "strength": 0.80,
+            "lag": 4,
+            "desc": "surface flooding from ruptures forces road closures and traffic diversions",
+        },
+        {
+            "domain": "PUBLIC_INFRASTRUCTURE",
+            "rel": "CORRELATED",
+            "strength": 0.65,
+            "lag": 6,
+            "desc": "pipe failures undermine road surface integrity, accelerating infrastructure degradation",
+        },
+        {
+            "domain": "INTERNET",
+            "rel": "CORRELATED",
+            "strength": 0.25,
+            "lag": 15,
+            "desc": "underground duct flooding risks cable damage in shared utility corridors",
+        },
     ],
     "INTERNET": [
-        {"domain": "POWER",               "rel": "PRECEDED",   "strength": 0.70, "lag": -5, "desc": "network instability often precedes or coincides with power distribution stress"},
-        {"domain": "PUBLIC_INFRASTRUCTURE","rel": "CORRELATED", "strength": 0.35, "lag": 0,  "desc": "smart city sensor networks depend on connectivity for real-time monitoring"},
+        {
+            "domain": "POWER",
+            "rel": "PRECEDED",
+            "strength": 0.70,
+            "lag": -5,
+            "desc": "network instability often precedes or coincides with power distribution stress",
+        },
+        {
+            "domain": "PUBLIC_INFRASTRUCTURE",
+            "rel": "CORRELATED",
+            "strength": 0.35,
+            "lag": 0,
+            "desc": "smart city sensor networks depend on connectivity for real-time monitoring",
+        },
     ],
     "PUBLIC_INFRASTRUCTURE": [
-        {"domain": "TRAFFIC",             "rel": "AMPLIFIED",  "strength": 0.70, "lag": 3,  "desc": "signal failures and road defects compound traffic congestion patterns"},
-        {"domain": "POWER",               "rel": "CORRELATED", "strength": 0.50, "lag": 0,  "desc": "civic systems share electrical feeders with distribution infrastructure"},
+        {
+            "domain": "TRAFFIC",
+            "rel": "AMPLIFIED",
+            "strength": 0.70,
+            "lag": 3,
+            "desc": "signal failures and road defects compound traffic congestion patterns",
+        },
+        {
+            "domain": "POWER",
+            "rel": "CORRELATED",
+            "strength": 0.50,
+            "lag": 0,
+            "desc": "civic systems share electrical feeders with distribution infrastructure",
+        },
     ],
 }
 
@@ -92,7 +185,12 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "concurrent high-draw industrial equipment startup",
         ],
         "cascade_risk": "CRITICAL",
-        "impacted_systems": ["telecommunications", "traffic signaling", "water pumping", "emergency services"],
+        "impacted_systems": [
+            "telecommunications",
+            "traffic signaling",
+            "water pumping",
+            "emergency services",
+        ],
         "actions": [
             "Deploy mobile generation units to critical facilities",
             "Isolate faulted circuit section via SCADA",
@@ -111,7 +209,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "insufficient reactive compensation",
         ],
         "cascade_risk": "HIGH",
-        "impacted_systems": ["sensitive electronic equipment", "variable-frequency drives", "traffic controllers"],
+        "impacted_systems": [
+            "sensitive electronic equipment",
+            "variable-frequency drives",
+            "traffic controllers",
+        ],
         "actions": [
             "Reconnect switched capacitor banks",
             "Reduce industrial load via voluntary curtailment",
@@ -148,7 +250,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "freight vehicle mix increasing headway requirements",
         ],
         "cascade_risk": "MODERATE",
-        "impacted_systems": ["emergency vehicle response time", "goods delivery logistics", "air quality"],
+        "impacted_systems": [
+            "emergency vehicle response time",
+            "goods delivery logistics",
+            "air quality",
+        ],
         "actions": [
             "Activate adaptive signal control on affected corridor",
             "Enable dynamic message signs for alternate route guidance",
@@ -167,7 +273,12 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "complex junction geometry creating decision conflict",
         ],
         "cascade_risk": "HIGH",
-        "impacted_systems": ["emergency services", "road signal systems", "downstream traffic flow", "supply chains"],
+        "impacted_systems": [
+            "emergency services",
+            "road signal systems",
+            "downstream traffic flow",
+            "supply chains",
+        ],
         "actions": [
             "Dispatch emergency services immediately",
             "Activate pre-planned detour route via VMS",
@@ -186,7 +297,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "weather-driven modal shift from active transport",
         ],
         "cascade_risk": "MODERATE",
-        "impacted_systems": ["fuel consumption", "emissions levels", "road surface wear"],
+        "impacted_systems": [
+            "fuel consumption",
+            "emissions levels",
+            "road surface wear",
+        ],
         "actions": [
             "Enable reversible lane operation on capacity-critical links",
             "Push real-time routing guidance via navigation platforms",
@@ -203,7 +318,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "power quality issues in supply network",
         ],
         "cascade_risk": "HIGH",
-        "impacted_systems": ["intersection safety", "traffic flow efficiency", "emergency vehicle preemption"],
+        "impacted_systems": [
+            "intersection safety",
+            "traffic flow efficiency",
+            "emergency vehicle preemption",
+        ],
         "actions": [
             "Switch to local fallback timing plan",
             "Deploy manual traffic management at affected intersection",
@@ -222,7 +341,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "ground movement from nearby construction activity",
         ],
         "cascade_risk": "HIGH",
-        "impacted_systems": ["fire suppression capacity", "residential supply", "industrial processes"],
+        "impacted_systems": [
+            "fire suppression capacity",
+            "residential supply",
+            "industrial processes",
+        ],
         "actions": [
             "Isolate affected segment via SCADA zone valve control",
             "Deploy field crew for emergency repair",
@@ -240,7 +363,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "recent maintenance activity disturbing deposits",
         ],
         "cascade_risk": "CRITICAL",
-        "impacted_systems": ["public health", "industrial water-dependent processes", "hospitality sector"],
+        "impacted_systems": [
+            "public health",
+            "industrial water-dependent processes",
+            "hospitality sector",
+        ],
         "actions": [
             "Issue precautionary boil-water advisory for affected zone",
             "Increase monitoring sampling frequency to 1-hour intervals",
@@ -258,7 +385,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "soil saturation from prior precipitation events",
         ],
         "cascade_risk": "HIGH",
-        "impacted_systems": ["road network", "underground utilities", "building basements"],
+        "impacted_systems": [
+            "road network",
+            "underground utilities",
+            "building basements",
+        ],
         "actions": [
             "Activate pump stations at retention basins",
             "Open emergency overflow channels",
@@ -276,7 +407,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "TLS handshake overhead from connection churn",
         ],
         "cascade_risk": "MODERATE",
-        "impacted_systems": ["real-time monitoring systems", "financial transactions", "emergency communications"],
+        "impacted_systems": [
+            "real-time monitoring systems",
+            "financial transactions",
+            "emergency communications",
+        ],
         "actions": [
             "Apply QoS marking to prioritize critical traffic classes",
             "Re-advertise routes via secondary BGP path",
@@ -294,7 +429,12 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "microwave backhaul rain-fade on wireless segment",
         ],
         "cascade_risk": "HIGH",
-        "impacted_systems": ["VoIP quality", "video streaming", "IoT sensor telemetry", "SCADA real-time data"],
+        "impacted_systems": [
+            "VoIP quality",
+            "video streaming",
+            "IoT sensor telemetry",
+            "SCADA real-time data",
+        ],
         "actions": [
             "Fail over to secondary fiber route",
             "Check optical power levels on affected span",
@@ -312,7 +452,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "asymmetric traffic profile stressing upload path",
         ],
         "cascade_risk": "MODERATE",
-        "impacted_systems": ["business productivity", "cloud service access", "streaming platforms"],
+        "impacted_systems": [
+            "business productivity",
+            "cloud service access",
+            "streaming platforms",
+        ],
         "actions": [
             "Apply per-subscriber bandwidth caps for P2P traffic",
             "Coordinate with upstream ISP for emergency capacity",
@@ -330,7 +474,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "synchronous blocking I/O under load",
         ],
         "cascade_risk": "HIGH",
-        "impacted_systems": ["API response times", "user-facing service availability", "data pipeline reliability"],
+        "impacted_systems": [
+            "API response times",
+            "user-facing service availability",
+            "data pipeline reliability",
+        ],
         "actions": [
             "Trigger horizontal auto-scaling to add compute instances",
             "Identify and defer non-critical background tasks",
@@ -348,7 +496,11 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
             "freeze-thaw cycling widening existing micro-cracks",
         ],
         "cascade_risk": "LOW",
-        "impacted_systems": ["pedestrian safety", "vehicle suspension systems", "road surface drainage"],
+        "impacted_systems": [
+            "pedestrian safety",
+            "vehicle suspension systems",
+            "road surface drainage",
+        ],
         "actions": [
             "Deploy temporary protective barriers around defect",
             "Schedule priority repair within agreed SLA window",
@@ -360,25 +512,74 @@ _METRIC_RULES: Dict[str, Dict[str, Any]] = {
 # Environmental context factors
 _WEATHER_FACTORS = {
     "MORNING_RUSH": [
-        {"name": "Morning Atmospheric Instability", "desc": "Morning temperature inversions trap pollutants and reduce driver visibility, compounding road incident risk", "category": "WEATHER", "confidence": 0.62, "weight": 0.4},
+        {
+            "name": "Morning Atmospheric Instability",
+            "desc": "Morning temperature inversions trap pollutants and reduce driver visibility, compounding road incident risk",
+            "category": "WEATHER",
+            "confidence": 0.62,
+            "weight": 0.4,
+        },
     ],
     "AFTERNOON_HEAT": [
-        {"name": "Peak Solar Thermal Load", "desc": "Solar radiation and ambient temperatures above 35°C drive simultaneous HVAC demand across residential and commercial zones", "category": "WEATHER", "confidence": 0.88, "weight": 0.7},
+        {
+            "name": "Peak Solar Thermal Load",
+            "desc": "Solar radiation and ambient temperatures above 35°C drive simultaneous HVAC demand across residential and commercial zones",
+            "category": "WEATHER",
+            "confidence": 0.88,
+            "weight": 0.7,
+        },
     ],
     "EVENING_SURGE": [
-        {"name": "Diurnal Temperature Drop", "desc": "Evening temperature reduction increases residential heating demand, partially offsetting the reduction in cooling load", "category": "WEATHER", "confidence": 0.55, "weight": 0.35},
+        {
+            "name": "Diurnal Temperature Drop",
+            "desc": "Evening temperature reduction increases residential heating demand, partially offsetting the reduction in cooling load",
+            "category": "WEATHER",
+            "confidence": 0.55,
+            "weight": 0.35,
+        },
     ],
     "OVERNIGHT": [
-        {"name": "Reduced Ambient Temperature", "desc": "Nighttime temperature reduction contracts pipe materials, increasing stress at joints — particularly in aging networks", "category": "WEATHER", "confidence": 0.50, "weight": 0.30},
+        {
+            "name": "Reduced Ambient Temperature",
+            "desc": "Nighttime temperature reduction contracts pipe materials, increasing stress at joints — particularly in aging networks",
+            "category": "WEATHER",
+            "confidence": 0.50,
+            "weight": 0.30,
+        },
     ],
 }
 
 _TEMPORAL_FACTORS = {
-    "MORNING_RUSH":    {"name": "Morning Commute Demand Pattern", "desc": "07:00–09:00 represents the highest simultaneous demand period for road network and energy infrastructure", "confidence": 0.92, "weight": 0.85},
-    "MIDDAY_PEAK":     {"name": "Midday Commercial Demand Peak", "desc": "12:00–14:00 commercial activity concentration drives network and energy peaks", "confidence": 0.82, "weight": 0.70},
-    "AFTERNOON_HEAT":  {"name": "Afternoon Peak Temperature Window", "desc": "14:00–17:00 represents the daily maximum temperature, creating extreme HVAC and cooling demand", "confidence": 0.87, "weight": 0.80},
-    "EVENING_SURGE":   {"name": "Evening Residential Load Surge", "desc": "17:00–20:00 residential return home creates simultaneous demand across all infrastructure systems", "confidence": 0.85, "weight": 0.78},
-    "OVERNIGHT":       {"name": "Low-Activity Maintenance Window", "desc": "00:00–06:00 scheduled maintenance activity increases system perturbation risk", "confidence": 0.65, "weight": 0.50},
+    "MORNING_RUSH": {
+        "name": "Morning Commute Demand Pattern",
+        "desc": "07:00–09:00 represents the highest simultaneous demand period for road network and energy infrastructure",
+        "confidence": 0.92,
+        "weight": 0.85,
+    },
+    "MIDDAY_PEAK": {
+        "name": "Midday Commercial Demand Peak",
+        "desc": "12:00–14:00 commercial activity concentration drives network and energy peaks",
+        "confidence": 0.82,
+        "weight": 0.70,
+    },
+    "AFTERNOON_HEAT": {
+        "name": "Afternoon Peak Temperature Window",
+        "desc": "14:00–17:00 represents the daily maximum temperature, creating extreme HVAC and cooling demand",
+        "confidence": 0.87,
+        "weight": 0.80,
+    },
+    "EVENING_SURGE": {
+        "name": "Evening Residential Load Surge",
+        "desc": "17:00–20:00 residential return home creates simultaneous demand across all infrastructure systems",
+        "confidence": 0.85,
+        "weight": 0.78,
+    },
+    "OVERNIGHT": {
+        "name": "Low-Activity Maintenance Window",
+        "desc": "00:00–06:00 scheduled maintenance activity increases system perturbation risk",
+        "confidence": 0.65,
+        "weight": 0.50,
+    },
 }
 
 
@@ -421,11 +622,17 @@ class ExplainService:
                     break
         if rule is None:
             rule = {
-                "primary_causes": [f"anomalous behavior in {metric_name.replace('_', ' ')} metric"],
+                "primary_causes": [
+                    f"anomalous behavior in {metric_name.replace('_', ' ')} metric"
+                ],
                 "amplifiers": ["concurrent system stress", "elevated operational load"],
                 "cascade_risk": "MODERATE",
                 "impacted_systems": ["dependent infrastructure systems"],
-                "actions": ["Investigate root cause", "Monitor for escalation", "Notify operations team"],
+                "actions": [
+                    "Investigate root cause",
+                    "Monitor for escalation",
+                    "Notify operations team",
+                ],
             }
 
         # ── 2. Contributing factor assembly ───────────────────────────────
@@ -434,84 +641,104 @@ class ExplainService:
 
         # Primary cause factor
         primary_cause_desc = rule["primary_causes"][0]
-        factors.append({
-            "factor_id": f"F{fid:02d}",
-            "name": "Primary Trigger",
-            "factor_type": "PRIMARY",
-            "description": primary_cause_desc,
-            "confidence": min(0.95, 0.7 + score * 0.3),
-            "weight": 1.0,
-            "category": category,
-            "evidence": [
-                f"{metric_name.replace('_', ' ').title()} reading: {score*100:.0f}% anomaly score",
-                f"Severity classification: {severity}",
-                f"Event timestamp: {timestamp[:16].replace('T', ' ')}",
-            ],
-            "metric_refs": [metric_name],
-        })
+        factors.append(
+            {
+                "factor_id": f"F{fid:02d}",
+                "name": "Primary Trigger",
+                "factor_type": "PRIMARY",
+                "description": primary_cause_desc,
+                "confidence": min(0.95, 0.7 + score * 0.3),
+                "weight": 1.0,
+                "category": category,
+                "evidence": [
+                    f"{metric_name.replace('_', ' ').title()} reading: {score*100:.0f}% anomaly score",
+                    f"Severity classification: {severity}",
+                    f"Event timestamp: {timestamp[:16].replace('T', ' ')}",
+                ],
+                "metric_refs": [metric_name],
+            }
+        )
         fid += 1
 
         # Amplifier factors from rule
         for i, amp in enumerate(rule["amplifiers"][:3]):
-            factors.append({
-                "factor_id": f"F{fid:02d}",
-                "name": f"Amplifying Condition {i+1}",
-                "factor_type": "AMPLIFIER",
-                "description": amp,
-                "confidence": max(0.4, 0.75 - i * 0.1),
-                "weight": max(0.3, 0.8 - i * 0.15),
-                "category": category,
-                "evidence": [f"Pattern consistent with known amplification mechanism in {_CATEGORY_LABELS.get(category, category)} domain"],
-                "metric_refs": [metric_name],
-            })
+            factors.append(
+                {
+                    "factor_id": f"F{fid:02d}",
+                    "name": f"Amplifying Condition {i+1}",
+                    "factor_type": "AMPLIFIER",
+                    "description": amp,
+                    "confidence": max(0.4, 0.75 - i * 0.1),
+                    "weight": max(0.3, 0.8 - i * 0.15),
+                    "category": category,
+                    "evidence": [
+                        f"Pattern consistent with known amplification mechanism in {_CATEGORY_LABELS.get(category, category)} domain"
+                    ],
+                    "metric_refs": [metric_name],
+                }
+            )
             fid += 1
 
         # Temporal factor
         temp_factor = _TEMPORAL_FACTORS.get(time_ctx)
         if temp_factor:
-            factors.append({
-                "factor_id": f"F{fid:02d}",
-                "name": temp_factor["name"],
-                "factor_type": "TEMPORAL",
-                "description": temp_factor["desc"],
-                "confidence": temp_factor["confidence"],
-                "weight": temp_factor["weight"],
-                "category": "TEMPORAL",
-                "evidence": [f"Time-of-day: {dt.strftime('%H:%M') if 'dt' in dir() else 'Unknown'}", f"Window: {time_ctx.replace('_', ' ').title()}"],
-                "metric_refs": [],
-            })
+            factors.append(
+                {
+                    "factor_id": f"F{fid:02d}",
+                    "name": temp_factor["name"],
+                    "factor_type": "TEMPORAL",
+                    "description": temp_factor["desc"],
+                    "confidence": temp_factor["confidence"],
+                    "weight": temp_factor["weight"],
+                    "category": "TEMPORAL",
+                    "evidence": [
+                        f"Time-of-day: {dt.strftime('%H:%M') if 'dt' in dir() else 'Unknown'}",
+                        f"Window: {time_ctx.replace('_', ' ').title()}",
+                    ],
+                    "metric_refs": [],
+                }
+            )
             fid += 1
 
         # Weather / environmental factor
         env_factors = _WEATHER_FACTORS.get(time_ctx, [])
         for ef in env_factors[:1]:
-            factors.append({
-                "factor_id": f"F{fid:02d}",
-                "name": ef["name"],
-                "factor_type": "ENVIRONMENTAL",
-                "description": ef["desc"],
-                "confidence": ef["confidence"],
-                "weight": ef["weight"],
-                "category": "WEATHER",
-                "evidence": [f"Meteorological conditions consistent with {time_ctx.replace('_', ' ').lower()} pattern"],
-                "metric_refs": [],
-            })
+            factors.append(
+                {
+                    "factor_id": f"F{fid:02d}",
+                    "name": ef["name"],
+                    "factor_type": "ENVIRONMENTAL",
+                    "description": ef["desc"],
+                    "confidence": ef["confidence"],
+                    "weight": ef["weight"],
+                    "category": "WEATHER",
+                    "evidence": [
+                        f"Meteorological conditions consistent with {time_ctx.replace('_', ' ').lower()} pattern"
+                    ],
+                    "metric_refs": [],
+                }
+            )
             fid += 1
 
         # Cross-domain correlate factors
         domain_corrs = _DOMAIN_CORRELATIONS.get(category, [])
         for corr in domain_corrs[:2]:
-            factors.append({
-                "factor_id": f"F{fid:02d}",
-                "name": f"Cross-Domain Pressure: {corr['domain'].replace('_', ' ').title()}",
-                "factor_type": "CORRELATE",
-                "description": corr["desc"].capitalize(),
-                "confidence": corr["strength"] * 0.85,
-                "weight": corr["strength"] * 0.65,
-                "category": corr["domain"],
-                "evidence": [f"Correlation coefficient: {corr['strength']:.2f}", f"Typical lag: {corr['lag']} min"],
-                "metric_refs": [],
-            })
+            factors.append(
+                {
+                    "factor_id": f"F{fid:02d}",
+                    "name": f"Cross-Domain Pressure: {corr['domain'].replace('_', ' ').title()}",
+                    "factor_type": "CORRELATE",
+                    "description": corr["desc"].capitalize(),
+                    "confidence": corr["strength"] * 0.85,
+                    "weight": corr["strength"] * 0.65,
+                    "category": corr["domain"],
+                    "evidence": [
+                        f"Correlation coefficient: {corr['strength']:.2f}",
+                        f"Typical lag: {corr['lag']} min",
+                    ],
+                    "metric_refs": [],
+                }
+            )
             fid += 1
 
         # ── 3. Correlation chain ──────────────────────────────────────────
@@ -519,21 +746,25 @@ class ExplainService:
         primary_id = "F00"
         for f in factors[1:]:
             if f["factor_type"] in ("AMPLIFIER", "TEMPORAL", "ENVIRONMENTAL"):
-                chain.append({
-                    "from_factor": f["factor_id"],
-                    "to_factor": primary_id,
-                    "relationship": "AMPLIFIED",
-                    "strength": f["weight"],
-                    "lag_minutes": 0,
-                })
+                chain.append(
+                    {
+                        "from_factor": f["factor_id"],
+                        "to_factor": primary_id,
+                        "relationship": "AMPLIFIED",
+                        "strength": f["weight"],
+                        "lag_minutes": 0,
+                    }
+                )
             elif f["factor_type"] == "CORRELATE":
-                chain.append({
-                    "from_factor": primary_id,
-                    "to_factor": f["factor_id"],
-                    "relationship": "TRIGGERED",
-                    "strength": f["weight"],
-                    "lag_minutes": domain_corrs[0]["lag"] if domain_corrs else 5,
-                })
+                chain.append(
+                    {
+                        "from_factor": primary_id,
+                        "to_factor": f["factor_id"],
+                        "relationship": "TRIGGERED",
+                        "strength": f["weight"],
+                        "lag_minutes": domain_corrs[0]["lag"] if domain_corrs else 5,
+                    }
+                )
 
         # ── 4. Reasoning steps ────────────────────────────────────────────
         steps = [
@@ -583,7 +814,11 @@ class ExplainService:
         metric_label = metric_name.replace("_", " ")
         cat_label = _CATEGORY_LABELS.get(category, category.lower())
         domain_corr_desc = domain_corrs[0]["desc"] if domain_corrs else ""
-        amplifier = rule["amplifiers"][0] if rule["amplifiers"] else "concurrent operational load"
+        amplifier = (
+            rule["amplifiers"][0]
+            if rule["amplifiers"]
+            else "concurrent operational load"
+        )
 
         headline = (
             f"{metric_label.title()} anomaly in {district} "
@@ -599,9 +834,7 @@ class ExplainService:
 
         # Build richer causal narrative
         factor_list = ", ".join(f["name"].lower() for f in factors[1:3])
-        corr_clause = (
-            f" Furthermore, {domain_corr_desc}." if domain_corr_desc else ""
-        )
+        corr_clause = f" Furthermore, {domain_corr_desc}." if domain_corr_desc else ""
         causal_narrative = (
             f"At {timestamp[11:16]} UTC {time_label}, the {cat_label} monitoring system "
             f"recorded a significant deviation in {metric_label} metrics within the {district} zone. "
@@ -618,8 +851,14 @@ class ExplainService:
         )
 
         # Overall confidence
-        overall_confidence = round(min(0.97, 0.6 + score * 0.35 + (0.05 if temp_factor else 0)), 3)
-        explanation_quality = "STRONG" if overall_confidence >= 0.75 else "MODERATE" if overall_confidence >= 0.55 else "SPECULATIVE"
+        overall_confidence = round(
+            min(0.97, 0.6 + score * 0.35 + (0.05 if temp_factor else 0)), 3
+        )
+        explanation_quality = (
+            "STRONG"
+            if overall_confidence >= 0.75
+            else "MODERATE" if overall_confidence >= 0.55 else "SPECULATIVE"
+        )
 
         latency_ms = int((time.perf_counter() - t0) * 1000)
 
@@ -654,11 +893,24 @@ class ExplainService:
         cross-incident patterns.
         """
         explanations = [
-            ExplainService.explain_anomaly(**{
-                k: v for k, v in a.items()
-                if k in ("anomaly_id", "metric_name", "severity", "category",
-                         "score", "timestamp", "district", "description", "related_ids")
-            })
+            ExplainService.explain_anomaly(
+                **{
+                    k: v
+                    for k, v in a.items()
+                    if k
+                    in (
+                        "anomaly_id",
+                        "metric_name",
+                        "severity",
+                        "category",
+                        "score",
+                        "timestamp",
+                        "district",
+                        "description",
+                        "related_ids",
+                    )
+                }
+            )
             for a in anomalies
         ]
 
@@ -673,13 +925,23 @@ class ExplainService:
 
         patterns = []
         if cat_counts.get("POWER", 0) >= 1 and cat_counts.get("INTERNET", 0) >= 1:
-            patterns.append("Power-Internet co-occurrence detected — suggests shared infrastructure vulnerability or cascade propagation")
+            patterns.append(
+                "Power-Internet co-occurrence detected — suggests shared infrastructure vulnerability or cascade propagation"
+            )
         if cat_counts.get("TRAFFIC", 0) >= 2:
-            patterns.append("Multiple simultaneous traffic events indicate systemic network stress, not isolated incidents")
+            patterns.append(
+                "Multiple simultaneous traffic events indicate systemic network stress, not isolated incidents"
+            )
         if cat_counts.get("WATER", 0) >= 1 and cat_counts.get("TRAFFIC", 0) >= 1:
-            patterns.append("Water infrastructure failure correlating with traffic disruption — possible road surface flooding cascade")
-        if len(explanations) >= 3 and all(e["severity"] in ("CRITICAL", "WARNING") for e in explanations):
-            patterns.append("Coordinated multi-domain elevation suggests a shared environmental trigger (e.g., extreme weather or grid instability)")
+            patterns.append(
+                "Water infrastructure failure correlating with traffic disruption — possible road surface flooding cascade"
+            )
+        if len(explanations) >= 3 and all(
+            e["severity"] in ("CRITICAL", "WARNING") for e in explanations
+        ):
+            patterns.append(
+                "Coordinated multi-domain elevation suggests a shared environmental trigger (e.g., extreme weather or grid instability)"
+            )
 
         system_narrative = (
             f"Analysis of {len(explanations)} concurrent anomalies reveals systemic stress "

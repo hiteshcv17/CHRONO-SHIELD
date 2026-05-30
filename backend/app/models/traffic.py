@@ -6,6 +6,7 @@ class TrafficRecordModel(Base):
     """
     SQLAlchemy representation of historical highway corridor traffic telemetry.
     """
+
     __tablename__ = "traffic_records"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)

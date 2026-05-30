@@ -12,9 +12,13 @@ from app.core.auth import require_analyst
 router = APIRouter(dependencies=[Depends(require_analyst)])
 
 
-@router.get("/timeline", response_model=ReplayTimelineResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/timeline", response_model=ReplayTimelineResponse, status_code=status.HTTP_200_OK
+)
 async def get_replay_timeline(
-    hours: int = Query(24, ge=1, le=168, description="Time range in hours (1–168 / up to 7 days)"),
+    hours: int = Query(
+        24, ge=1, le=168, description="Time range in hours (1–168 / up to 7 days)"
+    ),
 ):
     """
     Returns the full replay timeline payload:
@@ -25,7 +29,9 @@ async def get_replay_timeline(
     return ReplayService.get_timeline(time_range_hours=hours)
 
 
-@router.get("/frame/{bucket_index}", response_model=ReplayFrame, status_code=status.HTTP_200_OK)
+@router.get(
+    "/frame/{bucket_index}", response_model=ReplayFrame, status_code=status.HTTP_200_OK
+)
 async def get_replay_frame(
     bucket_index: int,
     hours: int = Query(24, ge=1, le=168),
@@ -38,7 +44,11 @@ async def get_replay_frame(
     return ReplayService.get_replay_frame(bucket_index, data["incidents"])
 
 
-@router.get("/compare", response_model=IncidentComparisonResponse, status_code=status.HTTP_200_OK)
+@router.get(
+    "/compare",
+    response_model=IncidentComparisonResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def compare_incidents(
     id_a: str = Query(..., description="First incident ID (e.g. INC-005)"),
     id_b: str = Query(..., description="Second incident ID (e.g. INC-006)"),
@@ -52,5 +62,9 @@ async def compare_incidents(
     result = ReplayService.compare_incidents(id_a, id_b, data["incidents"])
     if not result:
         from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail=f"One or both incident IDs not found: {id_a}, {id_b}")
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"One or both incident IDs not found: {id_a}, {id_b}",
+        )
     return result

@@ -8,6 +8,7 @@ class TestCacheSubsystem:
 
     def test_cache_response_decorator(self):
         """Verify that the cache_response decorator correctly stores outputs and serves hits."""
+
         async def run_test():
             call_count = 0
 
@@ -47,6 +48,7 @@ class TestCacheSubsystem:
 
     def test_cache_invalidation(self):
         """Verify that invalidation deletes matching keys while leaving others intact."""
+
         async def run_test():
             call_count_1 = 0
             call_count_2 = 0

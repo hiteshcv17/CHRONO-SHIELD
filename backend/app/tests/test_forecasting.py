@@ -15,15 +15,18 @@ class TestForecastingPipeline:
 
     def test_24h_prophet_forecast(self):
         """Verify Prophet predictive pipelines for a 24-hour horizon."""
+
         async def run_test():
-            return await ForecastingService.get_telemetry_forecast(None, "energy_demand", horizon_hours=24)
-        
+            return await ForecastingService.get_telemetry_forecast(
+                None, "energy_demand", horizon_hours=24
+            )
+
         result = self._run_async(run_test())
         assert result["metric_name"] == "Energy Demand (kW)"
         assert len(result["records"]) > 100
         assert "predicted_anomalies" in result
         assert "explanation" in result
-        
+
         # Verify explanation schema
         expl = result["explanation"]
         assert expl["trend_direction"] in ["UPWARD_TREND", "DOWNWARD_TREND", "STABLE"]
@@ -34,18 +37,24 @@ class TestForecastingPipeline:
 
     def test_7d_prophet_forecast(self):
         """Verify Prophet predictive pipelines for a 7-day (168-hour) horizon."""
+
         async def run_test():
-            return await ForecastingService.get_telemetry_forecast(None, "traffic_jam", horizon_hours=168)
-        
+            return await ForecastingService.get_telemetry_forecast(
+                None, "traffic_jam", horizon_hours=168
+            )
+
         result = self._run_async(run_test())
         assert result["metric_name"] == "Traffic Jam Factor"
         assert len(result["records"]) > 100
-        
+
     def test_30d_prophet_forecast(self):
         """Verify Prophet predictive pipelines for a 30-day (720-hour) horizon."""
+
         async def run_test():
-            return await ForecastingService.get_telemetry_forecast(None, "anomaly_score", horizon_hours=720)
-        
+            return await ForecastingService.get_telemetry_forecast(
+                None, "anomaly_score", horizon_hours=720
+            )
+
         result = self._run_async(run_test())
         assert result["metric_name"] == "AI Anomaly Score"
         assert len(result["records"]) > 100
@@ -69,7 +78,7 @@ class TestForecastingPipeline:
             username="mockoperator",
             email="mock@chronoshield.ai",
             role="ANALYST",
-            is_active=True
+            is_active=True,
         )
         app.dependency_overrides[get_current_user] = lambda: mock_user
         app.dependency_overrides[get_db_session] = lambda: None
@@ -80,7 +89,9 @@ class TestForecastingPipeline:
 
             # First request (cache miss)
             t0 = time.time()
-            response1 = client.get("/api/v1/forecasting/predict?metric_id=energy_demand&horizon_hours=24")
+            response1 = client.get(
+                "/api/v1/forecasting/predict?metric_id=energy_demand&horizon_hours=24"
+            )
             duration1 = time.time() - t0
 
             assert response1.status_code == status.HTTP_200_OK
@@ -89,7 +100,9 @@ class TestForecastingPipeline:
 
             # Second request (cache hit)
             t1 = time.time()
-            response2 = client.get("/api/v1/forecasting/predict?metric_id=energy_demand&horizon_hours=24")
+            response2 = client.get(
+                "/api/v1/forecasting/predict?metric_id=energy_demand&horizon_hours=24"
+            )
             duration2 = time.time() - t1
 
             assert response2.status_code == status.HTTP_200_OK
@@ -109,5 +122,3 @@ class TestForecastingPipeline:
             del app.dependency_overrides[get_current_user]
         if get_db_session in app.dependency_overrides:
             del app.dependency_overrides[get_db_session]
-
-

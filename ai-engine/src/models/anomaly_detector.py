@@ -13,14 +13,15 @@ logger = logging.getLogger("anomaly_detector")
 class TemporalAutoencoder(nn.Module):
     """
     PyTorch Reconstruction-based Autoencoder for Time-Series Anomaly Detection.
-    Attempts to compress and reconstruct normal sequence profiles. 
+    Attempts to compress and reconstruct normal sequence profiles.
     High reconstruction errors denote an anomalous signature.
     """
+
     def __init__(self, sequence_length: int, feature_dim: int, latent_dim: int = 8):
         super().__init__()
         self.sequence_length = sequence_length
         self.feature_dim = feature_dim
-        
+
         # Flattened size
         self.input_dim = sequence_length * feature_dim
 
@@ -31,7 +32,7 @@ class TemporalAutoencoder(nn.Module):
             nn.Linear(64, 32),
             nn.ReLU(),
             nn.Linear(32, latent_dim),
-            nn.ReLU()
+            nn.ReLU(),
         )
 
         # Decoder Layers
@@ -41,7 +42,7 @@ class TemporalAutoencoder(nn.Module):
             nn.Linear(32, 64),
             nn.ReLU(),
             nn.Linear(64, self.input_dim),
-            nn.Tanh()  # Bounds values to normalized standard scale
+            nn.Tanh(),  # Bounds values to normalized standard scale
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -57,14 +58,17 @@ class TemporalAutoencoder(nn.Module):
         # Reconstruct
         reconstructed_flat = self.decoder(latent)
         # Unflatten back to sequence profile
-        return reconstructed_flat.view(batch_size, self.sequence_length, self.feature_dim)
+        return reconstructed_flat.view(
+            batch_size, self.sequence_length, self.feature_dim
+        )
 
 
 class AnomalyDetectorManager(BaseModel):
     """
-    Orchestration layer managing weights, threshold calculations, JIT compiled models, 
+    Orchestration layer managing weights, threshold calculations, JIT compiled models,
     and saving/loading model artifacts.
     """
+
     def __init__(self, latent_dim: int = 8):
         self.sequence_length = ai_settings.SEQUENCE_LENGTH
         self.feature_dim = ai_settings.FEATURE_DIMENSION
@@ -79,9 +83,13 @@ class AnomalyDetectorManager(BaseModel):
         # Initialize TorchScript JIT model compiler for optimized inference
         try:
             self.jit_model = torch.jit.script(self.model)
-            logger.info("TorchScript JIT compilation successful for TemporalAutoencoder.")
+            logger.info(
+                "TorchScript JIT compilation successful for TemporalAutoencoder."
+            )
         except Exception as e:
-            logger.warning(f"TorchScript compilation failed, falling back to eager PyTorch model: {e}")
+            logger.warning(
+                f"TorchScript compilation failed, falling back to eager PyTorch model: {e}"
+            )
             self.jit_model = self.model
 
     def fit(self, X: Any, **kwargs: Any) -> Any:
@@ -99,13 +107,17 @@ class AnomalyDetectorManager(BaseModel):
             X_tensor = X.float()
 
         dataset = torch.utils.data.TensorDataset(X_tensor)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        dataloader = torch.utils.data.DataLoader(
+            dataset, batch_size=batch_size, shuffle=True
+        )
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         criterion = torch.nn.MSELoss()
 
         self.model.train()
-        logger.info(f"Starting model training for {epochs} epochs on device: {self.device}")
+        logger.info(
+            f"Starting model training for {epochs} epochs on device: {self.device}"
+        )
 
         for epoch in range(epochs):
             total_loss = 0.0
@@ -117,7 +129,7 @@ class AnomalyDetectorManager(BaseModel):
                 loss.backward()
                 optimizer.step()
                 total_loss += loss.item() * batch_x.size(0)
-            
+
             avg_loss = total_loss / len(X_tensor)
             if (epoch + 1) % max(1, epochs // 5) == 0 or epoch == epochs - 1:
                 logger.info(f"Epoch {epoch+1}/{epochs} - MSE Loss: {avg_loss:.6f}")
@@ -127,7 +139,7 @@ class AnomalyDetectorManager(BaseModel):
         with torch.no_grad():
             errors = []
             for i in range(0, len(X_tensor), batch_size):
-                batch_x = X_tensor[i:i+batch_size].to(self.device)
+                batch_x = X_tensor[i : i + batch_size].to(self.device)
                 reconstructed = self.model(batch_x)
                 mse = torch.mean((batch_x - reconstructed) ** 2, dim=(1, 2))
                 errors.extend(mse.cpu().numpy().tolist())
@@ -162,12 +174,15 @@ class AnomalyDetectorManager(BaseModel):
         if dir_name:
             os.makedirs(dir_name, exist_ok=True)
 
-        torch.save({
-            "model_state_dict": self.model.state_dict(),
-            "anomaly_threshold": self.anomaly_threshold,
-            "sequence_length": self.sequence_length,
-            "feature_dim": self.feature_dim
-        }, path)
+        torch.save(
+            {
+                "model_state_dict": self.model.state_dict(),
+                "anomaly_threshold": self.anomaly_threshold,
+                "sequence_length": self.sequence_length,
+                "feature_dim": self.feature_dim,
+            },
+            path,
+        )
         logger.info(f"Model checkpoint successfully saved to: {path}")
         return path
 
@@ -177,15 +192,17 @@ class AnomalyDetectorManager(BaseModel):
         """
         if not os.path.exists(path):
             raise FileNotFoundError(f"No serial checkpoint found matching: {path}")
-            
+
         checkpoint = torch.load(path, map_location=self.device)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.anomaly_threshold = checkpoint["anomaly_threshold"]
-        
+
         # Update the compiled JIT model weights
         try:
             self.jit_model = torch.jit.script(self.model)
-            logger.info("TorchScript JIT model successfully updated after loading checkpoint.")
+            logger.info(
+                "TorchScript JIT model successfully updated after loading checkpoint."
+            )
         except Exception as e:
             logger.warning(f"TorchScript compilation failed after load: {e}")
             self.jit_model = self.model
@@ -227,7 +244,7 @@ class AnomalyDetectorManager(BaseModel):
             # Add batch dimension if single sequence passed
             if len(x_tensor.shape) == 2:
                 x_tensor = x_tensor.unsqueeze(0)
-                
+
             reconstructed = predictor_model(x_tensor)
             # Compute Mean Squared Error per sequence sample
             mse = torch.mean((x_tensor - reconstructed) ** 2, dim=(1, 2))

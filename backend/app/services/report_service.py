@@ -38,15 +38,19 @@ class ReportService:
                 if records:
                     return records
             except Exception as e:
-                logger.error(f"PostgreSQL fetch reports failed: {e}. Falling back to mock registry.")
-        return sorted(_MOCK_REPORTS_REGISTRY, key=lambda x: x.created_at, reverse=True)[:limit]
+                logger.error(
+                    f"PostgreSQL fetch reports failed: {e}. Falling back to mock registry."
+                )
+        return sorted(_MOCK_REPORTS_REGISTRY, key=lambda x: x.created_at, reverse=True)[
+            :limit
+        ]
 
     @staticmethod
     async def generate_executive_report(
         db: Optional[AsyncSession],
         report_type: str,
         start_date: datetime,
-        end_date: datetime
+        end_date: datetime,
     ) -> Report:
         """
         Gathers system anomaly records, priority alerts, and sector health telemetry,
@@ -66,7 +70,7 @@ class ReportService:
             summary=None,
             pdf_path=None,
             csv_path=None,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
 
         if db:
@@ -86,14 +90,14 @@ class ReportService:
             try:
                 stmt = select(AnomalyRecord).where(
                     AnomalyRecord.timestamp >= start_date,
-                    AnomalyRecord.timestamp <= end_date
+                    AnomalyRecord.timestamp <= end_date,
                 )
                 res = await db.execute(stmt)
                 anomalies = list(res.scalars().all())
 
                 stmt_a = select(PrioritizedAlertRecord).where(
                     PrioritizedAlertRecord.timestamp >= start_date,
-                    PrioritizedAlertRecord.timestamp <= end_date
+                    PrioritizedAlertRecord.timestamp <= end_date,
                 )
                 res_a = await db.execute(stmt_a)
                 alerts = list(res_a.scalars().all())
@@ -103,14 +107,62 @@ class ReportService:
         # Fallback to mock data if empty
         if not anomalies:
             anomalies = [
-                AnomalyRecord(id="an-mock1", timestamp=datetime.utcnow() - timedelta(hours=4), metric_name="CPU_Usage", severity="CRITICAL", score=0.94, description="Core processor overload detected on node Gateway-4.", acknowledged=True),
-                AnomalyRecord(id="an-mock2", timestamp=datetime.utcnow() - timedelta(hours=8), metric_name="Grid_Stability", severity="WARNING", score=0.68, description="Voltage fluctuation detected on power grid feed East-12.", acknowledged=False),
-                AnomalyRecord(id="an-mock3", timestamp=datetime.utcnow() - timedelta(hours=12), metric_name="Traffic_Flow", severity="INFO", score=0.45, description="Minor transit congestion on Boulevard East.", acknowledged=True),
+                AnomalyRecord(
+                    id="an-mock1",
+                    timestamp=datetime.utcnow() - timedelta(hours=4),
+                    metric_name="CPU_Usage",
+                    severity="CRITICAL",
+                    score=0.94,
+                    description="Core processor overload detected on node Gateway-4.",
+                    acknowledged=True,
+                ),
+                AnomalyRecord(
+                    id="an-mock2",
+                    timestamp=datetime.utcnow() - timedelta(hours=8),
+                    metric_name="Grid_Stability",
+                    severity="WARNING",
+                    score=0.68,
+                    description="Voltage fluctuation detected on power grid feed East-12.",
+                    acknowledged=False,
+                ),
+                AnomalyRecord(
+                    id="an-mock3",
+                    timestamp=datetime.utcnow() - timedelta(hours=12),
+                    metric_name="Traffic_Flow",
+                    severity="INFO",
+                    score=0.45,
+                    description="Minor transit congestion on Boulevard East.",
+                    acknowledged=True,
+                ),
             ]
         if not alerts:
             alerts = [
-                PrioritizedAlertRecord(id="al-mock1", metric_name="CPU_Usage", original_severity="CRITICAL", current_severity="CRITICAL", priority_score=85.0, status="RESOLVED", occurrence_count=3, timestamp=datetime.utcnow() - timedelta(hours=4), last_occurrence=datetime.utcnow() - timedelta(hours=4), description="Core CPU spiked.", escalation_level=0),
-                PrioritizedAlertRecord(id="al-mock2", metric_name="Grid_Stability", original_severity="WARNING", current_severity="CRITICAL", priority_score=72.0, status="ESCALATED", occurrence_count=1, timestamp=datetime.utcnow() - timedelta(hours=8), last_occurrence=datetime.utcnow() - timedelta(hours=8), description="Grid voltage failure.", escalation_level=1)
+                PrioritizedAlertRecord(
+                    id="al-mock1",
+                    metric_name="CPU_Usage",
+                    original_severity="CRITICAL",
+                    current_severity="CRITICAL",
+                    priority_score=85.0,
+                    status="RESOLVED",
+                    occurrence_count=3,
+                    timestamp=datetime.utcnow() - timedelta(hours=4),
+                    last_occurrence=datetime.utcnow() - timedelta(hours=4),
+                    description="Core CPU spiked.",
+                    escalation_level=0,
+                ),
+                PrioritizedAlertRecord(
+                    id="al-mock2",
+                    metric_name="Grid_Stability",
+                    original_severity="WARNING",
+                    current_severity="CRITICAL",
+                    priority_score=72.0,
+                    status="ESCALATED",
+                    occurrence_count=1,
+                    timestamp=datetime.utcnow() - timedelta(hours=8),
+                    last_occurrence=datetime.utcnow() - timedelta(hours=8),
+                    description="Grid voltage failure.",
+                    escalation_level=1,
+                ),
             ]
 
         # 3. Calculate metrics
@@ -121,11 +173,19 @@ class ReportService:
         peak_score = max([a.score for a in anomalies]) if anomalies else 0.0
 
         total_alerts = len(alerts)
-        resolved_alerts = sum(1 for a in alerts if a.status in ("RESOLVED", "ACKNOWLEDGED"))
+        resolved_alerts = sum(
+            1 for a in alerts if a.status in ("RESOLVED", "ACKNOWLEDGED")
+        )
         sla_violations = sum(1 for a in alerts if a.escalation_level > 0)
 
         # Categorize health scores deterministically
-        sector_anoms = {"POWER": 0, "TRAFFIC": 0, "WATER": 0, "INTERNET": 0, "PUBLIC_INFRASTRUCTURE": 0}
+        sector_anoms = {
+            "POWER": 0,
+            "TRAFFIC": 0,
+            "WATER": 0,
+            "INTERNET": 0,
+            "PUBLIC_INFRASTRUCTURE": 0,
+        }
         for a in anomalies:
             m_upper = a.metric_name.upper()
             if "GRID" in m_upper or "POWER" in m_upper or "ENERGY" in m_upper:
@@ -134,7 +194,12 @@ class ReportService:
                 sector_anoms["TRAFFIC"] += 1
             elif "WATER" in m_upper or "FLOW" in m_upper or "HYDRO" in m_upper:
                 sector_anoms["WATER"] += 1
-            elif "WEATHER" in m_upper or "PUBLIC" in m_upper or "STREET" in m_upper or "ROAD" in m_upper:
+            elif (
+                "WEATHER" in m_upper
+                or "PUBLIC" in m_upper
+                or "STREET" in m_upper
+                or "ROAD" in m_upper
+            ):
                 sector_anoms["PUBLIC_INFRASTRUCTURE"] += 1
             else:
                 sector_anoms["INTERNET"] += 1  # Fallback maps to digital infrastructure
@@ -166,7 +231,7 @@ class ReportService:
             "lowest_health_score": float(round(lowest_score, 2)),
             "forecast_mae": forecast_mae,
             "forecast_rmse": forecast_rmse,
-            "forecast_trend": forecast_trend
+            "forecast_trend": forecast_trend,
         }
 
         # 4. Generate CSV
@@ -175,18 +240,45 @@ class ReportService:
         try:
             with open(csv_file_path, "w", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow(["CHRONOSHIELD AI EXECUTIVE REPORT", report_type.upper()])
+                writer.writerow(
+                    ["CHRONOSHIELD AI EXECUTIVE REPORT", report_type.upper()]
+                )
                 writer.writerow(["Title", title])
-                writer.writerow(["Date Range", f"{start_date.isoformat()} to {end_date.isoformat()}"])
+                writer.writerow(
+                    [
+                        "Date Range",
+                        f"{start_date.isoformat()} to {end_date.isoformat()}",
+                    ]
+                )
                 writer.writerow([])
                 writer.writerow(["EXECUTIVE KPI METRICS"])
                 for k, v in summary_metrics.items():
                     writer.writerow([k.replace("_", " ").capitalize(), v])
                 writer.writerow([])
                 writer.writerow(["RAW ANOMALY INCIDENTS LOG"])
-                writer.writerow(["Incident ID", "Timestamp", "Metric Name", "Severity", "Score", "Description", "Acknowledged"])
+                writer.writerow(
+                    [
+                        "Incident ID",
+                        "Timestamp",
+                        "Metric Name",
+                        "Severity",
+                        "Score",
+                        "Description",
+                        "Acknowledged",
+                    ]
+                )
                 for a in anomalies:
-                    writer.writerow([a.id, a.timestamp.isoformat(), a.metric_name, a.severity, a.score, a.description, a.acknowledged])
+                    writer.writerow(
+                        [
+                            a.id,
+                            a.timestamp.isoformat(),
+                            a.metric_name,
+                            a.severity,
+                            a.score,
+                            a.description,
+                            a.acknowledged,
+                        ]
+                    )
             logger.info(f"Report CSV generated at {csv_file_path}")
         except Exception as e:
             logger.error(f"Failed to generate report CSV: {e}")
@@ -194,72 +286,107 @@ class ReportService:
         # 5. Generate PDF (using reportlab with fallback)
         pdf_filename = f"{report_id}.pdf"
         pdf_file_path = os.path.join(STATIC_REPORTS_DIR, pdf_filename)
-        
+
         pdf_success = False
         try:
             # Attempt to use reportlab to build PDF
             from reportlab.lib.pagesizes import letter
             from reportlab.lib import colors
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether
+            from reportlab.platypus import (
+                SimpleDocTemplate,
+                Paragraph,
+                Spacer,
+                Table,
+                TableStyle,
+                PageBreak,
+                KeepTogether,
+            )
             from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-            doc = SimpleDocTemplate(pdf_file_path, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+            doc = SimpleDocTemplate(
+                pdf_file_path,
+                pagesize=letter,
+                rightMargin=36,
+                leftMargin=36,
+                topMargin=36,
+                bottomMargin=36,
+            )
             styles = getSampleStyleSheet()
 
             # Custom corporate palettes
             title_style = ParagraphStyle(
-                'ReportTitle',
-                parent=styles['Heading1'],
-                textColor=colors.HexColor('#0f172a'), # Slate 900
+                "ReportTitle",
+                parent=styles["Heading1"],
+                textColor=colors.HexColor("#0f172a"),  # Slate 900
                 fontSize=22,
                 leading=26,
-                spaceAfter=15
+                spaceAfter=15,
             )
             section_style = ParagraphStyle(
-                'ReportSection',
-                parent=styles['Heading2'],
-                textColor=colors.HexColor('#0284c7'), # Sky 600
+                "ReportSection",
+                parent=styles["Heading2"],
+                textColor=colors.HexColor("#0284c7"),  # Sky 600
                 fontSize=14,
                 leading=18,
                 spaceBefore=15,
-                spaceAfter=8
+                spaceAfter=8,
             )
             body_style = ParagraphStyle(
-                'ReportBody',
-                parent=styles['Normal'],
-                textColor=colors.HexColor('#334155'), # Slate 700
+                "ReportBody",
+                parent=styles["Normal"],
+                textColor=colors.HexColor("#334155"),  # Slate 700
                 fontSize=9.5,
                 leading=13,
-                spaceAfter=6
+                spaceAfter=6,
             )
             code_style = ParagraphStyle(
-                'ReportCode',
-                parent=styles['Normal'],
-                fontName='Courier',
-                textColor=colors.HexColor('#0f172a'),
+                "ReportCode",
+                parent=styles["Normal"],
+                fontName="Courier",
+                textColor=colors.HexColor("#0f172a"),
                 fontSize=8.5,
-                leading=11
+                leading=11,
             )
 
             story = []
 
             # Header Banner
-            story.append(Paragraph(f"<b>ChronoShield AI</b> — {report_type.upper()} SECURITY & HEALTH AUDIT", body_style))
+            story.append(
+                Paragraph(
+                    f"<b>ChronoShield AI</b> — {report_type.upper()} SECURITY & HEALTH AUDIT",
+                    body_style,
+                )
+            )
             story.append(Spacer(1, 4))
-            
+
             # Draw double line table helper
             line_table = Table([[""]], colWidths=[540])
-            line_table.setStyle(TableStyle([
-                ('LINEBELOW', (0,0), (-1,-1), 1.5, colors.HexColor('#0284c7')),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 0),
-                ('TOPPADDING', (0,0), (-1,-1), 0)
-            ]))
+            line_table.setStyle(
+                TableStyle(
+                    [
+                        (
+                            "LINEBELOW",
+                            (0, 0),
+                            (-1, -1),
+                            1.5,
+                            colors.HexColor("#0284c7"),
+                        ),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                        ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ]
+                )
+            )
             story.append(line_table)
             story.append(Spacer(1, 15))
 
             # Report Title
             story.append(Paragraph(title, title_style))
-            story.append(Paragraph(f"<b>Audit Period:</b> {start_date.strftime('%B %d, %Y %H:%M')} to {end_date.strftime('%B %d, %Y %H:%M')} | <b>Generated:</b> {datetime.utcnow().strftime('%B %d, %Y %H:%M UTC')}", body_style))
+            story.append(
+                Paragraph(
+                    f"<b>Audit Period:</b> {start_date.strftime('%B %d, %Y %H:%M')} to {end_date.strftime('%B %d, %Y %H:%M')} | <b>Generated:</b> {datetime.utcnow().strftime('%B %d, %Y %H:%M UTC')}",
+                    body_style,
+                )
+            )
             story.append(Spacer(1, 15))
 
             # Executive Summary Section
@@ -278,62 +405,126 @@ class ReportService:
             # KPI Grid Table
             story.append(Paragraph("2. Critical Operational KPIs", section_style))
             kpi_data = [
-                [Paragraph("<b>Key Performance Indicator</b>", body_style), Paragraph("<b>Metric Value</b>", body_style), Paragraph("<b>Target Threshold</b>", body_style)],
-                [Paragraph("Overall System Health (Mean)", body_style), Paragraph(f"{system_health_avg:.2f}%", body_style), Paragraph(">= 95.00%", body_style)],
-                [Paragraph("Total Telemetry Anomalies", body_style), Paragraph(str(total_anoms), body_style), Paragraph("< 10 incidents", body_style)],
-                [Paragraph("Peak Reconstruction Loss Score", body_style), Paragraph(f"{peak_score:.3f}", body_style), Paragraph("< 0.850 score", body_style)],
-                [Paragraph("Consolidated Prioritized Alerts", body_style), Paragraph(str(total_alerts), body_style), Paragraph("N/A", body_style)],
-                [Paragraph("SLA Breaches (Response >30s)", body_style), Paragraph(str(sla_violations), body_style), Paragraph("0 breaches", body_style)]
+                [
+                    Paragraph("<b>Key Performance Indicator</b>", body_style),
+                    Paragraph("<b>Metric Value</b>", body_style),
+                    Paragraph("<b>Target Threshold</b>", body_style),
+                ],
+                [
+                    Paragraph("Overall System Health (Mean)", body_style),
+                    Paragraph(f"{system_health_avg:.2f}%", body_style),
+                    Paragraph(">= 95.00%", body_style),
+                ],
+                [
+                    Paragraph("Total Telemetry Anomalies", body_style),
+                    Paragraph(str(total_anoms), body_style),
+                    Paragraph("< 10 incidents", body_style),
+                ],
+                [
+                    Paragraph("Peak Reconstruction Loss Score", body_style),
+                    Paragraph(f"{peak_score:.3f}", body_style),
+                    Paragraph("< 0.850 score", body_style),
+                ],
+                [
+                    Paragraph("Consolidated Prioritized Alerts", body_style),
+                    Paragraph(str(total_alerts), body_style),
+                    Paragraph("N/A", body_style),
+                ],
+                [
+                    Paragraph("SLA Breaches (Response >30s)", body_style),
+                    Paragraph(str(sla_violations), body_style),
+                    Paragraph("0 breaches", body_style),
+                ],
             ]
             kpi_table = Table(kpi_data, colWidths=[240, 150, 150])
-            kpi_table.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-                ('TOPPADDING', (0,0), (-1,-1), 5),
-            ]))
+            kpi_table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                        ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ]
+                )
+            )
             story.append(kpi_table)
             story.append(Spacer(1, 12))
 
             # Sector health vulnerability table
-            story.append(Paragraph("3. Sector Health Vulnerability Rankings", section_style))
-            sector_data = [[Paragraph("<b>Sector Domain</b>", body_style), Paragraph("<b>Health Score</b>", body_style), Paragraph("<b>Operational Status</b>", body_style)]]
+            story.append(
+                Paragraph("3. Sector Health Vulnerability Rankings", section_style)
+            )
+            sector_data = [
+                [
+                    Paragraph("<b>Sector Domain</b>", body_style),
+                    Paragraph("<b>Health Score</b>", body_style),
+                    Paragraph("<b>Operational Status</b>", body_style),
+                ]
+            ]
             for sec, score in sector_healths.items():
-                status_lbl = "NOMINAL" if score >= 90.0 else "DEGRADED" if score >= 70.0 else "CRITICAL"
-                sector_data.append([Paragraph(sec.replace("_", " "), body_style), Paragraph(f"{score:.1f}%", body_style), Paragraph(status_lbl, body_style)])
-            
+                status_lbl = (
+                    "NOMINAL"
+                    if score >= 90.0
+                    else "DEGRADED" if score >= 70.0 else "CRITICAL"
+                )
+                sector_data.append(
+                    [
+                        Paragraph(sec.replace("_", " "), body_style),
+                        Paragraph(f"{score:.1f}%", body_style),
+                        Paragraph(status_lbl, body_style),
+                    ]
+                )
+
             sec_table = Table(sector_data, colWidths=[200, 150, 190])
-            sec_table.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-                ('TOPPADDING', (0,0), (-1,-1), 5),
-            ]))
+            sec_table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                        ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ]
+                )
+            )
             story.append(sec_table)
             story.append(Spacer(1, 12))
 
             # Outliers table
-            story.append(Paragraph("4. Key Anomaly Alerts Ingestion Logs (Top 5)", section_style))
-            logs_headers = [Paragraph("<b>ID</b>", body_style), Paragraph("<b>Metric</b>", body_style), Paragraph("<b>Severity</b>", body_style), Paragraph("<b>Score</b>", body_style), Paragraph("<b>Operational Description</b>", body_style)]
+            story.append(
+                Paragraph("4. Key Anomaly Alerts Ingestion Logs (Top 5)", section_style)
+            )
+            logs_headers = [
+                Paragraph("<b>ID</b>", body_style),
+                Paragraph("<b>Metric</b>", body_style),
+                Paragraph("<b>Severity</b>", body_style),
+                Paragraph("<b>Score</b>", body_style),
+                Paragraph("<b>Operational Description</b>", body_style),
+            ]
             logs_data = [logs_headers]
             for a in anomalies[:5]:
-                logs_data.append([
-                    Paragraph(a.id, code_style),
-                    Paragraph(a.metric_name, body_style),
-                    Paragraph(a.severity, body_style),
-                    Paragraph(f"{a.score:.2f}", body_style),
-                    Paragraph(a.description, body_style)
-                ])
+                logs_data.append(
+                    [
+                        Paragraph(a.id, code_style),
+                        Paragraph(a.metric_name, body_style),
+                        Paragraph(a.severity, body_style),
+                        Paragraph(f"{a.score:.2f}", body_style),
+                        Paragraph(a.description, body_style),
+                    ]
+                )
             logs_table = Table(logs_data, colWidths=[65, 85, 60, 45, 285])
-            logs_table.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-                ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-                ('TOPPADDING', (0,0), (-1,-1), 4),
-            ]))
+            logs_table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                        ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ]
+                )
+            )
             story.append(logs_table)
             story.append(Spacer(1, 20))
 
@@ -351,22 +542,34 @@ class ReportService:
 
             # Signature block
             sig_data = [
-                [Paragraph("Prepared By: __________________________", body_style), Paragraph("Approved By: __________________________", body_style)],
-                [Paragraph("Lead Operations Analyst", body_style), Paragraph("Chief Information Security Officer", body_style)]
+                [
+                    Paragraph("Prepared By: __________________________", body_style),
+                    Paragraph("Approved By: __________________________", body_style),
+                ],
+                [
+                    Paragraph("Lead Operations Analyst", body_style),
+                    Paragraph("Chief Information Security Officer", body_style),
+                ],
             ]
             sig_table = Table(sig_data, colWidths=[270, 270])
-            sig_table.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 2),
-                ('TOPPADDING', (0,0), (-1,-1), 2),
-            ]))
+            sig_table.setStyle(
+                TableStyle(
+                    [
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                        ("TOPPADDING", (0, 0), (-1, -1), 2),
+                    ]
+                )
+            )
             story.append(sig_table)
 
             doc.build(story)
             pdf_success = True
             logger.info(f"Report PDF generated at {pdf_file_path}")
         except Exception as pe:
-            logger.error(f"ReportLab PDF generation failed: {pe}. Executing print-ready HTML fallback.")
+            logger.error(
+                f"ReportLab PDF generation failed: {pe}. Executing print-ready HTML fallback."
+            )
 
         if not pdf_success:
             # Fallback HTML file rendering
@@ -374,7 +577,8 @@ class ReportService:
                 html_file_path = pdf_file_path.replace(".pdf", ".html")
                 # Write beautifully styled print-ready HTML
                 with open(html_file_path, "w") as hf:
-                    hf.write(f"""<!DOCTYPE html>
+                    hf.write(
+                        f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -438,7 +642,14 @@ th {{ background: #f1f5f9; font-weight: 600; color: #0f172a; }}
             </tr>
         </thead>
         <tbody>
-    """ + "".join([f"<tr><td>{sec.replace('_', ' ')}</td><td>{score:.1f}%</td><td>{'NOMINAL' if score >= 90.0 else 'DEGRADED' if score >= 70.0 else 'CRITICAL'}</td></tr>" for sec, score in sector_healths.items()]) + f"""
+    """
+                        + "".join(
+                            [
+                                f"<tr><td>{sec.replace('_', ' ')}</td><td>{score:.1f}%</td><td>{'NOMINAL' if score >= 90.0 else 'DEGRADED' if score >= 70.0 else 'CRITICAL'}</td></tr>"
+                                for sec, score in sector_healths.items()
+                            ]
+                        )
+                        + f"""
         </tbody>
     </table>
     
@@ -454,7 +665,14 @@ th {{ background: #f1f5f9; font-weight: 600; color: #0f172a; }}
             </tr>
         </thead>
         <tbody>
-    """ + "".join([f"<tr><td class='code'>{a.id}</td><td>{a.metric_name}</td><td>{a.severity}</td><td>{a.score:.2f}</td><td>{a.description}</td></tr>" for a in anomalies[:5]]) + f"""
+    """
+                        + "".join(
+                            [
+                                f"<tr><td class='code'>{a.id}</td><td>{a.metric_name}</td><td>{a.severity}</td><td>{a.score:.2f}</td><td>{a.description}</td></tr>"
+                                for a in anomalies[:5]
+                            ]
+                        )
+                        + f"""
         </tbody>
     </table>
     
@@ -471,7 +689,8 @@ th {{ background: #f1f5f9; font-weight: 600; color: #0f172a; }}
     </div>
 </div>
 </body>
-</html>""")
+</html>"""
+                    )
                 logger.info(f"Report Fallback HTML generated at {html_file_path}")
                 # We copy HTML file directly to pdf_file_path so that it can still be downloaded/viewed
                 with open(pdf_file_path, "w") as pdf_f:

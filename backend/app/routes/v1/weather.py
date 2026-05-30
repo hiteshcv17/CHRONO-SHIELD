@@ -30,7 +30,7 @@ async def get_current_observations() -> CurrentWeatherResponse:
 )
 async def get_weather_parameter_trends(
     city: str = Query(..., description="Target location city name (e.g. London)"),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> WeatherTrendsResponse:
     """
     Query chronological historical sequences (up to the last 50 poll cycles) from PostgreSQL for a specific city.

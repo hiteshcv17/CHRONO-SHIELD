@@ -13,7 +13,9 @@ class NotificationChannelConfigResponse(BaseModel):
 
 
 class NotificationChannelConfigUpdate(BaseModel):
-    config: Optional[str] = Field(None, description="JSON string representation of config")
+    config: Optional[str] = Field(
+        None, description="JSON string representation of config"
+    )
     enabled: Optional[bool] = Field(None, description="Whether the channel is active")
 
 
@@ -38,4 +40,6 @@ class NotificationDeliveryLogResponse(BaseModel):
 class NotificationTestPayload(BaseModel):
     channel: Literal["EMAIL", "TELEGRAM", "WEBHOOK"]
     recipient: str = Field(..., description="Target address/ID/URL for test")
-    message: str = Field("This is a ChronoShield AI test notification.", description="Test content")
+    message: str = Field(
+        "This is a ChronoShield AI test notification.", description="Test content"
+    )

@@ -51,9 +51,15 @@ class TrafficDataSource(BaseDataSource):
             ),
             interval_seconds=self.config.interval_seconds,
             supported_fields=[
-                "timestamp", "corridor_id", "flow_speed_kmh",
-                "free_flow_speed_kmh", "jam_factor", "congestion_level",
-                "incident_count", "travel_time_seconds", "confidence_score",
+                "timestamp",
+                "corridor_id",
+                "flow_speed_kmh",
+                "free_flow_speed_kmh",
+                "jam_factor",
+                "congestion_level",
+                "incident_count",
+                "travel_time_seconds",
+                "confidence_score",
             ],
             tags=["traffic", "transport", "urban", "real-time", "flow"],
         )
@@ -89,14 +95,18 @@ class TrafficDataSource(BaseDataSource):
                 bbox = corridor.get("bbox")
 
                 if not bbox:
-                    logger.warning(f"[{meta.name}] Skipping corridor {corridor_id} due to missing bounding box.")
+                    logger.warning(
+                        f"[{meta.name}] Skipping corridor {corridor_id} due to missing bounding box."
+                    )
                     continue
 
                 try:
                     record = await self._fetch_corridor_flow(session, corridor_id, bbox)
                     records.append(record)
                 except Exception as e:
-                    logger.error(f"[{meta.name}] Failed to fetch traffic for {corridor_id}: {e}")
+                    logger.error(
+                        f"[{meta.name}] Failed to fetch traffic for {corridor_id}: {e}"
+                    )
                     errors.append(f"{corridor_id}: {str(e)}")
 
         status = IngestionStatus.SUCCESS
@@ -120,7 +130,11 @@ class TrafficDataSource(BaseDataSource):
             metadata={
                 "endpoint": self.config.endpoint,
                 "corridors_polled": len(corridors),
-                "api_used": "HERE Traffic Flow" if self.config.api_key else "Peak-Hour Simulator Fallback",
+                "api_used": (
+                    "HERE Traffic Flow"
+                    if self.config.api_key
+                    else "Peak-Hour Simulator Fallback"
+                ),
             },
         )
 
@@ -140,7 +154,9 @@ class TrafficDataSource(BaseDataSource):
                         f"?bbox={test_bbox}&apiKey={self.config.api_key}"
                     )
                     async with session.get(url, timeout=5) as response:
-                        latency = (datetime.utcnow() - start_time).total_seconds() * 1000
+                        latency = (
+                            datetime.utcnow() - start_time
+                        ).total_seconds() * 1000
                         if response.status == 200:
                             return SourceHealthStatus(
                                 source_name=meta.name,
@@ -159,7 +175,9 @@ class TrafficDataSource(BaseDataSource):
                     # No API key check - test public internet reachability (e.g. google.com)
                     url = "https://www.google.com"
                     async with session.get(url, timeout=4) as response:
-                        latency = (datetime.utcnow() - start_time).total_seconds() * 1000
+                        latency = (
+                            datetime.utcnow() - start_time
+                        ).total_seconds() * 1000
                         if response.status == 200:
                             return SourceHealthStatus(
                                 source_name=meta.name,
@@ -207,7 +225,9 @@ class TrafficDataSource(BaseDataSource):
         # Fallback simulated traffic flow generator
         return self._simulate_flow_record(corridor_id, bbox)
 
-    async def _http_get_with_retry(self, session: aiohttp.ClientSession, url: str) -> Dict[str, Any]:
+    async def _http_get_with_retry(
+        self, session: aiohttp.ClientSession, url: str
+    ) -> Dict[str, Any]:
         """Enforces exponential back-off and retries on API requests."""
         retries = self.config.max_retries
         backoff = self.config.retry_backoff
@@ -223,7 +243,7 @@ class TrafficDataSource(BaseDataSource):
                     response.raise_for_status()
             except Exception as e:
                 if attempt < retries:
-                    sleep_time = backoff * (2 ** attempt)
+                    sleep_time = backoff * (2**attempt)
                     await asyncio.sleep(sleep_time)
                 else:
                     raise e
@@ -233,7 +253,9 @@ class TrafficDataSource(BaseDataSource):
     # Parsers & Simulators
     # ------------------------------------------------------------------
 
-    def _parse_here_response(self, corridor_id: str, bbox: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_here_response(
+        self, corridor_id: str, bbox: str, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Translate HERE flow JSON payloads into standard records."""
         # HERE Maps flow parsing structures
         # RWS is a list of Road Elements
@@ -303,18 +325,22 @@ class TrafficDataSource(BaseDataSource):
         hour = now.hour + (now.minute / 60.0)
 
         # Baseline details matching service layer
-        speed_base = 90.0 if "I95" in corridor_id else 100.0 if "I405" in corridor_id else 110.0
-        time_base = 360 if "I95" in corridor_id else 420 if "I405" in corridor_id else 600
+        speed_base = (
+            90.0 if "I95" in corridor_id else 100.0 if "I405" in corridor_id else 110.0
+        )
+        time_base = (
+            360 if "I95" in corridor_id else 420 if "I405" in corridor_id else 600
+        )
 
         # Gaussian Double Peak Rush Hour equations
-        morning_peak = math.exp(-((hour - 8.0) / 1.5) ** 2)
-        evening_peak = math.exp(-((hour - 17.5) / 1.5) ** 2)
+        morning_peak = math.exp(-(((hour - 8.0) / 1.5) ** 2))
+        evening_peak = math.exp(-(((hour - 17.5) / 1.5) ** 2))
         rush_factor = max(morning_peak, evening_peak)
 
         # Flows slow down and jam factors spike during morning/evening peaks
         flow_speed = speed_base * (1.0 - (0.55 * rush_factor))
         jam_factor = rush_factor * 8.5 + (1.0 - rush_factor) * 0.8
-        
+
         # Add slight stochastic fluctuations
         flow_speed = max(15.0, flow_speed - (4.0 * rush_factor))
         jam_factor = min(10.0, max(0.0, jam_factor + (0.3 * rush_factor)))

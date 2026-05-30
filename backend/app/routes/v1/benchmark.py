@@ -29,7 +29,9 @@ async def run_benchmark(req: BenchmarkRequest):
 
 @router.get("/quick", response_model=BenchmarkRun, status_code=status.HTTP_200_OK)
 async def run_quick_benchmark(
-    metric_type: str = Query("power", description="Single metric type to benchmark quickly"),
+    metric_type: str = Query(
+        "power", description="Single metric type to benchmark quickly"
+    ),
     n_samples: int = Query(120, ge=60, le=500),
     horizon: int = Query(12, ge=4, le=48),
 ):
