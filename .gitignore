@@ -142,7 +142,6 @@ cython_debug/
 node_modules/
 /frontend/dist
 /frontend/dist-ssr
-/frontend/package-lock.json
 /frontend/.svelte-kit
 /frontend/.next
 /frontend/out
@@ -201,7 +200,6 @@ tsconfig.tsbuildinfo
 .env*.local
 
 # npm/pnpm/yarn packages
-package-lock.json
 pnpm-lock.yaml
 yarn.lock
 

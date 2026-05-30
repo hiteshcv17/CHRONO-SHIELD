@@ -110,11 +110,13 @@ class CorrelationService:
         sum_xy = sum(x[i] * y[i] for i in range(n))
 
         num = n * sum_xy - sum_x * sum_y
-        den = math.sqrt((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y))
+        term_x = n * sum_x2 - sum_x * sum_x
+        term_y = n * sum_y2 - sum_y * sum_y
 
-        if den == 0.0:
+        if term_x <= 0.0 or term_y <= 0.0:
             return 0.0
 
+        den = math.sqrt(term_x * term_y)
         return num / den
 
     @staticmethod
